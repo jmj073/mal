@@ -15,6 +15,7 @@
 */experiments
 */node_modules
 *.o
+*.a
 *.pyc
 */step0_repl
 */step1_read_print
