@@ -13,9 +13,9 @@ AR=ar
 
 DEBUG=-ggdb
 CXXFLAGS=-O3 -Wall $(DEBUG) $(INCPATHS) -std=c++20
-LDFLAGS=-O3 $(DEBUG) $(LIBPATHS) -L.
+LDFLAGS=-O3 $(DEBUG) $(LIBPATHS) -L. -lreadline
 
-LIBSOURCES=
+LIBSOURCES=readline.cpp
 LIBOBJS=$(LIBSOURCES:%.cpp=%.o)
 
 MAINS=$(wildcard step*.cpp)

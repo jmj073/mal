@@ -1,7 +1,25 @@
 #include <iostream>
 #include <string>
 
+#include "readline.h"
+
 using namespace std;
+
+string READ(const string& in);
+string EVAL(const string& expr);
+string PRINT(const string& value);
+string rep(const string& in);
+
+static ReadLine read_line("~/.mal-history");
+
+int main() {
+    const string prompt = "user> ";
+    string input;
+
+    while (read_line.get(prompt, input)) {
+        cout << rep(input) << endl;
+    }
+}
 
 string READ(const string& in) {
     return in;
@@ -17,21 +35,4 @@ string PRINT(const string& value) {
 
 string rep(const string& in) {
     return PRINT(EVAL(READ(in)));
-}
-
-int main() {
-    cin.tie(0)->sync_with_stdio(0);
-
-    const string prompt = "user> ";
-
-    while (true) {
-        cout << prompt << flush;
-        
-        string in;
-        getline(cin, in);
-
-        if (!cin) break;
-
-        cout << rep(in) << endl;
-    }
 }

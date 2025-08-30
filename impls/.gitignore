@@ -12,6 +12,7 @@
 .npm
 .node-gyp
 .elm
+.deps
 */experiments
 */node_modules
 *.o
