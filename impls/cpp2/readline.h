@@ -1,3 +1,6 @@
+#ifndef _READLINE_H_
+#define _READLINE_H_
+
 #include <string>
 #include <filesystem>
 
@@ -11,3 +14,5 @@ public:
 private:
     std::filesystem::path m_history_path;
 };
+
+#endif // _READLINE_H_
