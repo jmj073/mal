@@ -126,6 +126,30 @@ unique_ptr<MalType> read_form(Reader<T>& reader) {
         return read_list(reader);
     } else if (is_right_bracket(token[0])) {
         throw MalSyntaxError("unbalanced");
+    } else if (token == "'") {
+        auto l = make_unique<MalList>();
+        l->data.push_back(make_unique<MalSymbol>("quote"));
+        reader.next();
+        l->data.push_back(read_form(reader));
+        return l;
+    } else if (token == "`") {
+        auto l = make_unique<MalList>();
+        l->data.push_back(make_unique<MalSymbol>("quasiquote"));
+        reader.next();
+        l->data.push_back(read_form(reader));
+        return l;
+    } else if (token == "~") {
+        auto l = make_unique<MalList>();
+        l->data.push_back(make_unique<MalSymbol>("unquote"));
+        reader.next();
+        l->data.push_back(read_form(reader));
+        return l;
+    } else if (token == "~@") {
+        auto l = make_unique<MalList>();
+        l->data.push_back(make_unique<MalSymbol>("splice-unquote"));
+        reader.next();
+        l->data.push_back(read_form(reader));
+        return l;
     } else {
         return read_atom(reader);
     }
@@ -171,20 +195,20 @@ unique_ptr<MalAtom> read_atom(Reader<T>& reader) {
         }
         auto str = string(token.begin() + 1, token.end() - 1);
         return make_unique<MalString>(decode_string(str));
-    } else if (isdigit(token[0])) {
-        if (regex_match(token, num_regex)) { // number
+    } else if (isdigit(token[0])) { // number
+        if (regex_match(token, num_regex)) { 
             return make_unique<MalNumber>(stoi(token));
         } else {
             throw MalSyntaxError("invalid number");
         }
+    } else if (regex_match(token, num_regex)) {
+        return make_unique<MalNumber>(stoi(token));
     } else if (token == "nil") { // nil
         return make_unique<MalNil>();
     } else if (token == "true") { // true
         return make_unique<MalBool>(true);
     } else if (token == "false") { // false
         return make_unique<MalBool>(false);
-    } else if (regex_match(token, num_regex)) { // number
-        return make_unique<MalNumber>(stoi(token));
     } else { // symbol
         return make_unique<MalSymbol>(::std::move(token));
     }
