@@ -36,7 +36,7 @@ int main() {
     auto re = regex(R"([\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"?|;.*|[^\s\[\]{}('"`,;)]*))");
 
     string s;
-    cin >> s;
+    getline(cin, s);
 
     auto tokenizer = tokenize(s, re);
 
