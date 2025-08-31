@@ -1,10 +1,9 @@
 #include <regex>
-#include <ranges>
 #include <cassert>
 #include <cctype>
+#include <cstdio>
 
 #include "reader.h"
-#include "types.h"
 
 using namespace std;
 using namespace ranges;
@@ -28,7 +27,6 @@ private:
     const std::regex* m_re;
 };
 
-unique_ptr<MalType> read_str(const string& str);
 auto tokenize(const string& str, const regex& re);
 template <typename T>
 unique_ptr<MalType> read_form(Reader<T>& reader);
@@ -44,7 +42,7 @@ auto tokenize(const string& str, const regex& re) {
     return regex_view(str, re)
         | views::transform([] (const auto& m) { return m[1].matched ? m[1].str() : m.str(); })
         | views::filter([] (auto token) { return !token.empty(); })
-        | views::filter([] (auto token) { return token[0] == ';'; });
+        | views::filter([] (auto token) { return token[0] != ';'; });
 }
 
 template <typename T>
@@ -66,17 +64,14 @@ unique_ptr<MalList> read_list(Reader<T>& reader) {
 
     auto mal_list = make_unique<MalList>();
 
-    while (true) {
+    while (reader.peek() != ")") {
         auto token = reader.peek();
         assert(!token.empty());
 
-        mal_list.push_back(read_form(reader));
-
-        if (token == ")") {
-            token.next();
-            break;
-        }
+        mal_list->data.push_back(read_form(reader));
     }
+
+    reader.next();
 
     return mal_list;
 }
@@ -86,7 +81,12 @@ unique_ptr<MalAtom> read_atom(Reader<T>& reader) {
     auto token = reader.next();
 
     if (isdigit(token[0])) {
-        return atoi(
+        int num;
+        int n = sscanf(token.c_str(), "%d", &num);
+        assert(n == 1);
+        return make_unique<MalNumber>(num);
+    } else {
+        return make_unique<MalSymbol>(::std::move(token));
     }
 }
 
@@ -95,7 +95,4 @@ unique_ptr<MalType> read_str(const string& str) {
     auto re = regex(R"([\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"?|;.*|[^\s\[\]{}('"`,;)]*))");
     auto reader = make_reader(tokenize(str, re));
     return read_form(reader);
-}
-
-int main() {
 }

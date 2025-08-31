@@ -2,12 +2,14 @@
 #include <string>
 
 #include "readline.h"
+#include "reader.h"
+#include "printer.h"
 
 using namespace std;
 
-string READ(const string& in);
-string EVAL(const string& expr);
-string PRINT(const string& value);
+unique_ptr<MalType> READ(const string& in);
+unique_ptr<MalType> EVAL(unique_ptr<MalType> ast);
+string PRINT(unique_ptr<MalType> ast);
 string rep(const string& in);
 
 static ReadLine read_line("~/.mal-history");
@@ -21,16 +23,16 @@ int main() {
     }
 }
 
-string READ(const string& in) {
-    return in;
+unique_ptr<MalType> READ(const string& in) {
+    return read_str(in);
 }
 
-string EVAL(const string& expr) {
-    return expr;
+unique_ptr<MalType> EVAL(unique_ptr<MalType> ast) {
+    return ast;
 }
 
-string PRINT(const string& value) {
-    return value;
+string PRINT(unique_ptr<MalType> ast) {
+    return pr_str(ast.get());
 }
 
 string rep(const string& in) {

@@ -1,5 +1,5 @@
-#ifndef _READLINE_H_
-#define _READLINE_H_
+#ifndef _MY_READLINE_H_
+#define _MY_READLINE_H_
 
 #include <string>
 #include <filesystem>
@@ -15,4 +15,4 @@ private:
     std::filesystem::path m_history_path;
 };
 
-#endif // _READLINE_H_
+#endif // _MY_READLINE_H_

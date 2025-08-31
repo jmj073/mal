@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <readline/tilde.h>
