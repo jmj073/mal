@@ -19,7 +19,11 @@ int main() {
     string input;
 
     while (read_line.get(prompt, input)) {
-        cout << rep(input) << endl;
+        try {
+            cout << rep(input) << endl;
+        } catch (MalSyntaxError& e) {
+            cerr << e.what() << endl;
+        }
     }
 }
 

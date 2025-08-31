@@ -23,8 +23,8 @@ struct regex_view : view_interface<regex_view> {
     }
 
 private:
-    const std::string* m_str;
-    const std::regex* m_re;
+    const string* m_str;
+    const regex* m_re;
 };
 
 auto tokenize(const string& str, const regex& re);
@@ -36,25 +36,57 @@ unique_ptr<MalList> read_list(Reader<T>& reader);
 template <typename T>
 unique_ptr<MalAtom> read_atom(Reader<T>& reader);
 
+static bool is_left_bracket(char c) {
+    constexpr string_view brackets = "({[";
+    return brackets.find(c) != string::npos;
+}
+
+static bool is_right_bracket(char c) {
+    constexpr string_view brackets = ")}]";
+    return brackets.find(c) != string::npos;
+}
+
+static bool is_bracket(char c) {
+    return is_left_bracket(c) || is_right_bracket(c);
+}
+
+static char opposite_bracket(char c) {
+    switch (c) {
+        case '(': return ')';
+        case ')': return '(';
+        case '{': return '}';
+        case '}': return '{';
+        case '[': return ']';
+        case ']': return '[';
+    }
+
+    return c;
+}
+
+static bool is_balanced_string(const string& s) {
+    static const regex balanced(R"(^"(?:\\.|[^\\"])*"$)");
+    return regex_match(s, balanced);
+}
+
 static string decode_string(const string& s) {
     string out = s;
 
     // 단순 치환
-    out = std::regex_replace(out, std::regex(R"(\\n)"), "\n");
-    out = std::regex_replace(out, std::regex(R"(\\t)"), "\t");
-    out = std::regex_replace(out, std::regex(R"(\\r)"), "\r");
-    out = std::regex_replace(out, std::regex(R"(\\\")"), "\"");
-    out = std::regex_replace(out, std::regex(R"(\\\\)"), "\\");
+    out = regex_replace(out, regex(R"(\\n)"), "\n");
+    out = regex_replace(out, regex(R"(\\t)"), "\t");
+    out = regex_replace(out, regex(R"(\\r)"), "\r");
+    out = regex_replace(out, regex(R"(\\\")"), "\"");
+    out = regex_replace(out, regex(R"(\\\\)"), "\\");
 
     // \xHH 유니코드 처리
-    std::regex hexPattern(R"(\\x([0-9A-Fa-f]+);)");
-    std::smatch match;
-    std::string result;
-    std::string::const_iterator searchStart(out.cbegin());
+    regex hexPattern(R"(\\x([0-9A-Fa-f]+);)");
+    smatch match;
+    string result;
+    string::const_iterator searchStart(out.cbegin());
 
-    while (std::regex_search(searchStart, out.cend(), match, hexPattern)) {
+    while (regex_search(searchStart, out.cend(), match, hexPattern)) {
         result.append(match.prefix()); // 매치 전까지 복사
-        int code = std::stoi(match[1].str(), nullptr, 16);
+        int code = stoi(match[1].str(), nullptr, 16);
 
         // 간단하게 BMP 영역까지만 UTF-8 변환
         if (code <= 0x7F) {
@@ -86,25 +118,35 @@ auto tokenize(const string& str, const regex& re) {
 template <typename T>
 unique_ptr<MalType> read_form(Reader<T>& reader) {
     auto token = reader.peek();
+    if (token.empty()) {
+        throw MalSyntaxError("EOF");
+    }
 
-    switch (token[0]) {
-        case '(':
-            return read_list(reader);
-        default:
-            return read_atom(reader);
+    if (is_left_bracket(token[0])) {
+        return read_list(reader);
+    } else if (is_right_bracket(token[0])) {
+        throw MalSyntaxError("unbalanced");
+    } else {
+        return read_atom(reader);
     }
 }
 
 template <typename T>
 unique_ptr<MalList> read_list(Reader<T>& reader) {
     auto token = reader.next();
-    assert(token == "(");
+    if (token.size() != 1 && !is_left_bracket(token[0])) {
+        throw MalSyntaxError("unbalanced");
+    }
+    auto ob = string() + opposite_bracket(token[0]);
 
     auto mal_list = make_unique<MalList>();
 
-    while (reader.peek() != ")") {
+    while (reader.peek() != ob) {
         auto token = reader.peek();
-        assert(!token.empty());
+
+        if (token.empty()) {
+            throw MalSyntaxError("unbalanced");
+        }
 
         mal_list->data.push_back(read_form(reader));
     }
@@ -119,11 +161,22 @@ unique_ptr<MalAtom> read_atom(Reader<T>& reader) {
     static const regex num_regex(R"(^[+-]?\d+$)", regex::optimize);
 
     auto token = reader.next();
+    if (token.empty()) {
+        throw MalSyntaxError("EOF");
+    }
 
     if (token[0] == '"') { // string
-        assert(token.back() == '"');
+        if (!is_balanced_string(token)) {
+            throw MalSyntaxError("unbalanced");
+        }
         auto str = string(token.begin() + 1, token.end() - 1);
         return make_unique<MalString>(decode_string(str));
+    } else if (isdigit(token[0])) {
+        if (regex_match(token, num_regex)) { // number
+            return make_unique<MalNumber>(stoi(token));
+        } else {
+            throw MalSyntaxError("invalid number");
+        }
     } else if (token == "nil") { // nil
         return make_unique<MalNil>();
     } else if (token == "true") { // true

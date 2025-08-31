@@ -4,6 +4,7 @@
 #include <ranges>
 #include <utility>
 #include <memory>
+#include <stdexcept>
 
 #include "types.h"
 
@@ -41,6 +42,14 @@ auto make_reader(T&& tokenizer) {
     return Reader<T>(std::forward<T>(tokenizer));
 }
 
+class MalSyntaxError: public std::runtime_error {
+public:
+    MalSyntaxError(const char* msg)
+        : std::runtime_error(msg)
+    { }
+};
+
 std::unique_ptr<MalType> read_str(const std::string& str);
+
 
 #endif // _READER_H_
