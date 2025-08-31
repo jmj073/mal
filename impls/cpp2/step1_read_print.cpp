@@ -32,7 +32,7 @@ unique_ptr<MalType> EVAL(unique_ptr<MalType> ast) {
 }
 
 string PRINT(unique_ptr<MalType> ast) {
-    return pr_str(ast.get());
+    return pr_str(ast.get(), true);
 }
 
 string rep(const string& in) {

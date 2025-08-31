@@ -32,10 +32,7 @@ struct MalAtom: public MalType {
 };
 
 struct MalNumber: public MalAtom {
-    MalNumber()
-        : MalAtom(), data()
-    { }
-    MalNumber(int d)
+    MalNumber(int d = 0)
         : MalAtom(), data(d)
     { }
     int data;
@@ -49,6 +46,32 @@ struct MalSymbol: public MalAtom {
         : MalAtom(), data(::std::move(d))
     { }
     MalSymbol(const std::string& d)
+        : MalAtom(), data(d)
+    { }
+    std::string data;
+};
+
+struct MalNil: public MalAtom {
+    MalNil()
+        : MalAtom()
+    { }
+};
+
+struct MalBool: public MalAtom {
+    MalBool(bool d = false)
+        : MalAtom(), data(d)
+    { }
+    bool data;
+};
+
+struct MalString: public MalAtom {
+    MalString()
+        : MalAtom(), data()
+    { }
+    MalString(std::string&& d)
+        : MalAtom(), data(::std::move(d))
+    { }
+    MalString(const std::string& d)
         : MalAtom(), data(d)
     { }
     std::string data;

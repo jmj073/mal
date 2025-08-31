@@ -28,6 +28,7 @@ private:
 };
 
 auto tokenize(const string& str, const regex& re);
+
 template <typename T>
 unique_ptr<MalType> read_form(Reader<T>& reader);
 template <typename T>
@@ -35,7 +36,44 @@ unique_ptr<MalList> read_list(Reader<T>& reader);
 template <typename T>
 unique_ptr<MalAtom> read_atom(Reader<T>& reader);
 
+static string decode_string(const string& s) {
+    string out = s;
 
+    // 단순 치환
+    out = std::regex_replace(out, std::regex(R"(\\n)"), "\n");
+    out = std::regex_replace(out, std::regex(R"(\\t)"), "\t");
+    out = std::regex_replace(out, std::regex(R"(\\r)"), "\r");
+    out = std::regex_replace(out, std::regex(R"(\\\")"), "\"");
+    out = std::regex_replace(out, std::regex(R"(\\\\)"), "\\");
+
+    // \xHH 유니코드 처리
+    std::regex hexPattern(R"(\\x([0-9A-Fa-f]+);)");
+    std::smatch match;
+    std::string result;
+    std::string::const_iterator searchStart(out.cbegin());
+
+    while (std::regex_search(searchStart, out.cend(), match, hexPattern)) {
+        result.append(match.prefix()); // 매치 전까지 복사
+        int code = std::stoi(match[1].str(), nullptr, 16);
+
+        // 간단하게 BMP 영역까지만 UTF-8 변환
+        if (code <= 0x7F) {
+            result.push_back(static_cast<char>(code));
+        } else if (code <= 0x7FF) {
+            result.push_back(0xC0 | (code >> 6));
+            result.push_back(0x80 | (code & 0x3F));
+        } else {
+            result.push_back(0xE0 | (code >> 12));
+            result.push_back(0x80 | ((code >> 6) & 0x3F));
+            result.push_back(0x80 | (code & 0x3F));
+        }
+
+        searchStart = match.suffix().first; // 다음 검색 위치 갱신
+    }
+    result.append(searchStart, out.cend()); // 마지막 부분 복사
+
+    return result;
+}
 
 
 auto tokenize(const string& str, const regex& re) {
@@ -78,18 +116,26 @@ unique_ptr<MalList> read_list(Reader<T>& reader) {
 
 template <typename T>
 unique_ptr<MalAtom> read_atom(Reader<T>& reader) {
+    static const regex num_regex(R"(^[+-]?\d+$)", regex::optimize);
+
     auto token = reader.next();
 
-    if (isdigit(token[0])) {
-        int num;
-        int n = sscanf(token.c_str(), "%d", &num);
-        assert(n == 1);
-        return make_unique<MalNumber>(num);
-    } else {
+    if (token[0] == '"') { // string
+        assert(token.back() == '"');
+        auto str = string(token.begin() + 1, token.end() - 1);
+        return make_unique<MalString>(decode_string(str));
+    } else if (token == "nil") { // nil
+        return make_unique<MalNil>();
+    } else if (token == "true") { // true
+        return make_unique<MalBool>(true);
+    } else if (token == "false") { // false
+        return make_unique<MalBool>(false);
+    } else if (regex_match(token, num_regex)) { // number
+        return make_unique<MalNumber>(stoi(token));
+    } else { // symbol
         return make_unique<MalSymbol>(::std::move(token));
     }
 }
-
 
 unique_ptr<MalType> read_str(const string& str) {
     auto re = regex(R"([\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"?|;.*|[^\s\[\]{}('"`,;)]*))");

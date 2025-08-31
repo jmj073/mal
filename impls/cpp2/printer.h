@@ -5,6 +5,6 @@
 
 #include "types.h"
 
-std::string pr_str(const MalType* ast);
+std::string pr_str(const MalType* ast, bool print_readably);
 
 #endif // _PRINTER_H_
