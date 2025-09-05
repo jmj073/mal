@@ -68,6 +68,10 @@ static string pr_string(const MalString* s, bool print_readably) {
     return '"' + (print_readably ? encode_string(s->data) : s->data) + '"';
 }
 
+static string pr_keyword(const MalKeyword* k, bool print_readably) {
+    return ':' + k->data;
+}
+
 string pr_str(const MalType* ast, bool print_readably) {
     if (auto l = dynamic_cast<const MalList*>(ast)) {
         return pr_list(l, print_readably);
@@ -81,6 +85,8 @@ string pr_str(const MalType* ast, bool print_readably) {
         return pr_bool(b, print_readably);
     } else if (auto s = dynamic_cast<const MalString*>(ast)) {
         return pr_string(s, print_readably);
+    } else if (auto k = dynamic_cast<const MalKeyword*>(ast)) {
+        return pr_keyword(k, print_readably);
     }
 
     assert(!"invalid type");

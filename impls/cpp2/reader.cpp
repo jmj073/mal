@@ -195,6 +195,9 @@ unique_ptr<MalAtom> read_atom(Reader<T>& reader) {
         }
         auto str = string(token.begin() + 1, token.end() - 1);
         return make_unique<MalString>(decode_string(str));
+    } else if (token[0] == ':') {
+        auto str = string(token.begin() + 1, token.end());
+        return make_unique<MalKeyword>(str);
     } else if (isdigit(token[0])) { // number
         if (regex_match(token, num_regex)) { 
             return make_unique<MalNumber>(stoi(token));

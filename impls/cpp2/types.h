@@ -77,4 +77,17 @@ struct MalString: public MalAtom {
     std::string data;
 };
 
+struct MalKeyword: public MalAtom {
+    MalKeyword()
+        : MalAtom(), data()
+    { }
+    MalKeyword(std::string&& d)
+        : MalAtom(), data(::std::move(d))
+    { }
+    MalKeyword(const std::string& d)
+        : MalAtom(), data(d)
+    { }
+    std::string data;
+};
+
 #endif // _TYPES_H_
