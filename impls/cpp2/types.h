@@ -3,105 +3,60 @@
 
 #include <vector>
 #include <list>
+#include <string>
 #include <memory>
 #include <utility>
-#include <string>
+#include <variant>
 
-struct MalType {
-    MalType() { }
-    virtual ~MalType() { }
+struct MalList;
+struct MalVector;
+struct MalNumber;
+struct MalSymbol;
+struct MalNil;
+struct MalBool;
+struct MalString;
+struct MalKeyword;
+
+using MalType = std::variant<
+    MalList,
+    MalVector,
+    MalNumber,
+    MalSymbol,
+    MalNil,
+    MalBool,
+    MalString,
+    MalKeyword
+>;
+
+
+struct MalList {
+    std::list<MalType> data;
 };
 
-struct MalList: public MalType {
-private:
-    using T = std::list<std::unique_ptr<MalType>>;
-
-public:
-    MalList()
-        : MalType(), data()
-    { }
-    MalList(T&& d)
-        : MalType(), data(::std::move(d))
-    { }
-    T data;
+struct MalVector {
+    std::vector<MalType> data;
 };
 
-struct MalVector: public MalType {
-private:
-    using T = std::vector<std::unique_ptr<MalType>>;
-
-public:
-    MalVector()
-        : MalType(), data()
-    { }
-    MalVector(T&& d)
-        : MalType(), data(::std::move(d))
-    { }
-    T data;
-};
-
-struct MalAtom: public MalType {
-    MalAtom()
-        : MalType()
-    { }
-};
-
-struct MalNumber: public MalAtom {
-    MalNumber(int d = 0)
-        : MalAtom(), data(d)
-    { }
+struct MalNumber {
     int data;
 };
 
-struct MalSymbol: public MalAtom {
-    MalSymbol()
-        : MalAtom(), data()
-    { }
-    MalSymbol(std::string&& d)
-        : MalAtom(), data(::std::move(d))
-    { }
-    MalSymbol(const std::string& d)
-        : MalAtom(), data(d)
-    { }
+struct MalSymbol {
     std::string data;
 };
 
-struct MalNil: public MalAtom {
-    MalNil()
-        : MalAtom()
-    { }
+struct MalNil {
 };
 
-struct MalBool: public MalAtom {
-    MalBool(bool d = false)
-        : MalAtom(), data(d)
-    { }
+struct MalBool {
     bool data;
 };
 
-struct MalString: public MalAtom {
-    MalString()
-        : MalAtom(), data()
-    { }
-    MalString(std::string&& d)
-        : MalAtom(), data(::std::move(d))
-    { }
-    MalString(const std::string& d)
-        : MalAtom(), data(d)
-    { }
+struct MalString {
     std::string data;
 };
 
-struct MalKeyword: public MalAtom {
-    MalKeyword()
-        : MalAtom(), data()
-    { }
-    MalKeyword(std::string&& d)
-        : MalAtom(), data(::std::move(d))
-    { }
-    MalKeyword(const std::string& d)
-        : MalAtom(), data(d)
-    { }
+struct MalKeyword{
     std::string data;
 };
 

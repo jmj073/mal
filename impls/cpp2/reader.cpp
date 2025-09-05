@@ -30,13 +30,13 @@ private:
 auto tokenize(const string& str, const regex& re);
 
 template <typename T>
-unique_ptr<MalType> read_form(Reader<T>& reader);
+MalType read_form(Reader<T>& reader);
 template <typename T>
-unique_ptr<MalList> read_list(Reader<T>& reader);
+MalList read_list(Reader<T>& reader);
 template <typename T>
-unique_ptr<MalVector> read_vector(Reader<T>& reader);
+MalVector read_vector(Reader<T>& reader);
 template <typename T>
-unique_ptr<MalAtom> read_atom(Reader<T>& reader);
+MalType read_atom(Reader<T>& reader);
 
 static bool is_left_bracket(char c) {
     constexpr string_view brackets = "({[";
@@ -118,7 +118,7 @@ auto tokenize(const string& str, const regex& re) {
 }
 
 template <typename T>
-unique_ptr<MalType> read_form(Reader<T>& reader) {
+MalType read_form(Reader<T>& reader) {
     auto token = reader.peek();
     if (token.empty()) {
         throw MalSyntaxError("EOF");
@@ -131,28 +131,28 @@ unique_ptr<MalType> read_form(Reader<T>& reader) {
     } else if (is_right_bracket(token[0])) {
         throw MalSyntaxError("unbalanced");
     } else if (token == "'") {
-        auto l = make_unique<MalList>();
-        l->data.push_back(make_unique<MalSymbol>("quote"));
+        auto l = MalList();
+        l.data.push_back(MalSymbol("quote"));
         reader.next();
-        l->data.push_back(read_form(reader));
+        l.data.push_back(read_form(reader));
         return l;
     } else if (token == "`") {
-        auto l = make_unique<MalList>();
-        l->data.push_back(make_unique<MalSymbol>("quasiquote"));
+        auto l = MalList();
+        l.data.push_back(MalSymbol("quasiquote"));
         reader.next();
-        l->data.push_back(read_form(reader));
+        l.data.push_back(read_form(reader));
         return l;
     } else if (token == "~") {
-        auto l = make_unique<MalList>();
-        l->data.push_back(make_unique<MalSymbol>("unquote"));
+        auto l = MalList();
+        l.data.push_back(MalSymbol("unquote"));
         reader.next();
-        l->data.push_back(read_form(reader));
+        l.data.push_back(read_form(reader));
         return l;
     } else if (token == "~@") {
-        auto l = make_unique<MalList>();
-        l->data.push_back(make_unique<MalSymbol>("splice-unquote"));
+        auto l = MalList();
+        l.data.push_back(MalSymbol("splice-unquote"));
         reader.next();
-        l->data.push_back(read_form(reader));
+        l.data.push_back(read_form(reader));
         return l;
     } else {
         return read_atom(reader);
@@ -160,14 +160,14 @@ unique_ptr<MalType> read_form(Reader<T>& reader) {
 }
 
 template <typename T>
-unique_ptr<MalList> read_list(Reader<T>& reader) {
+MalList read_list(Reader<T>& reader) {
     auto token = reader.next();
     if (token != "(") {
         throw MalSyntaxError("unbalanced");
     }
     auto ob = string() + opposite_bracket(token[0]);
 
-    auto mal_list = make_unique<MalList>();
+    auto mal_list = MalList();
 
     while (reader.peek() != ob) {
         auto token = reader.peek();
@@ -176,7 +176,7 @@ unique_ptr<MalList> read_list(Reader<T>& reader) {
             throw MalSyntaxError("unbalanced");
         }
 
-        mal_list->data.push_back(read_form(reader));
+        mal_list.data.push_back(read_form(reader));
     }
 
     reader.next();
@@ -185,14 +185,14 @@ unique_ptr<MalList> read_list(Reader<T>& reader) {
 }
 
 template <typename T>
-unique_ptr<MalVector> read_vector(Reader<T>& reader) {
+MalVector read_vector(Reader<T>& reader) {
     auto token = reader.next();
     if (token != "[") {
         throw MalSyntaxError("unbalanced");
     }
     auto ob = string() + opposite_bracket(token[0]);
 
-    auto mal_vector = make_unique<MalVector>();
+    auto mal_vector = MalVector();
 
     while (reader.peek() != ob) {
         auto token = reader.peek();
@@ -201,7 +201,7 @@ unique_ptr<MalVector> read_vector(Reader<T>& reader) {
             throw MalSyntaxError("unbalanced");
         }
 
-        mal_vector->data.push_back(read_form(reader));
+        mal_vector.data.push_back(read_form(reader));
     }
 
     reader.next();
@@ -210,7 +210,7 @@ unique_ptr<MalVector> read_vector(Reader<T>& reader) {
 }
 
 template <typename T>
-unique_ptr<MalAtom> read_atom(Reader<T>& reader) {
+MalType read_atom(Reader<T>& reader) {
     static const regex num_regex(R"(^[+-]?\d+$)", regex::optimize);
 
     auto token = reader.next();
@@ -223,30 +223,30 @@ unique_ptr<MalAtom> read_atom(Reader<T>& reader) {
             throw MalSyntaxError("unbalanced");
         }
         auto str = string(token.begin() + 1, token.end() - 1);
-        return make_unique<MalString>(decode_string(str));
-    } else if (token[0] == ':') {
+        return MalString(decode_string(str));
+    } else if (token[0] == ':') { // keyword
         auto str = string(token.begin() + 1, token.end());
-        return make_unique<MalKeyword>(str);
+        return MalKeyword(str);
     } else if (isdigit(token[0])) { // number
         if (regex_match(token, num_regex)) { 
-            return make_unique<MalNumber>(stoi(token));
+            return MalNumber(stoi(token));
         } else {
             throw MalSyntaxError("invalid number");
         }
     } else if (regex_match(token, num_regex)) {
-        return make_unique<MalNumber>(stoi(token));
+        return MalNumber(stoi(token));
     } else if (token == "nil") { // nil
-        return make_unique<MalNil>();
+        return MalNil();
     } else if (token == "true") { // true
-        return make_unique<MalBool>(true);
+        return MalBool(true);
     } else if (token == "false") { // false
-        return make_unique<MalBool>(false);
+        return MalBool(false);
     } else { // symbol
-        return make_unique<MalSymbol>(::std::move(token));
+        return MalSymbol(::std::move(token));
     }
 }
 
-unique_ptr<MalType> read_str(const string& str) {
+MalType read_str(const string& str) {
     auto re = regex(R"([\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"?|;.*|[^\s\[\]{}('"`,;)]*))");
     auto tokenizer = tokenize(str, re);
     if (tokenizer.begin() == tokenizer.end()) {

@@ -7,9 +7,9 @@
 
 using namespace std;
 
-unique_ptr<MalType> READ(const string& in);
-unique_ptr<MalType> EVAL(unique_ptr<MalType> ast);
-string PRINT(unique_ptr<MalType> ast);
+MalType READ(const string& in);
+MalType EVAL(const MalType& ast);
+string PRINT(const MalType& ast);
 string rep(const string& in);
 
 static ReadLine read_line("~/.mal-history");
@@ -28,16 +28,16 @@ int main() {
     }
 }
 
-unique_ptr<MalType> READ(const string& in) {
+MalType READ(const string& in) {
     return read_str(in);
 }
 
-unique_ptr<MalType> EVAL(unique_ptr<MalType> ast) {
+MalType EVAL(const MalType& ast) {
     return ast;
 }
 
-string PRINT(unique_ptr<MalType> ast) {
-    return pr_str(ast.get(), true);
+string PRINT(const MalType& ast) {
+    return pr_str(ast, true);
 }
 
 string rep(const string& in) {

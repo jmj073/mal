@@ -34,12 +34,12 @@ static string encode_string(const string& s) {
     return result;
 }
 
-static string pr_list(const MalList* l, bool print_readably) {
-    const auto& v = l->data;
+static string pr_list(const MalList& l, bool print_readably) {
+    const auto& v = l.data;
     string ret = "(";
 
     for(auto it = v.begin(); it != v.end();) {
-        ret += pr_str(it->get(), print_readably);
+        ret += pr_str(*it, print_readably);
         if (++it == v.end()) {
             break;
         }
@@ -48,12 +48,12 @@ static string pr_list(const MalList* l, bool print_readably) {
     return ret + ")";
 }
 
-static string pr_vector(const MalVector* v, bool print_readably) {
-    const auto& e = v->data;
+static string pr_vector(const MalVector& v, bool print_readably) {
+    const auto& e = v.data;
     string ret = "[";
 
     for (size_t i = 0; i < e.size(); ++i) {
-        ret += pr_str(e[i].get(), print_readably);
+        ret += pr_str(e[i], print_readably);
         if (i + 1 != e.size()) {
             ret += ' ';
         }
@@ -62,48 +62,41 @@ static string pr_vector(const MalVector* v, bool print_readably) {
     return ret + "]";
 }
 
-static string pr_number(const MalNumber* n, bool print_readably) {
-    return to_string(n->data);
+static string pr_number(const MalNumber& n, bool print_readably) {
+    return to_string(n.data);
 }
 
-static string pr_symbol(const MalSymbol* s, bool print_readably) {
-    return s->data;
+static string pr_symbol(const MalSymbol& s, bool print_readably) {
+    return s.data;
 }
 
-static string pr_nil(const MalNil* nil, bool print_readably) {
+static string pr_nil(const MalNil& nil, bool print_readably) {
     return "nil";
 }
 
-static string pr_bool(const MalBool* b, bool print_readably) {
-    return b-> data ? "true" : "false";
+static string pr_bool(const MalBool& b, bool print_readably) {
+    return b.data ? "true" : "false";
 }
 
-static string pr_string(const MalString* s, bool print_readably) {
-    return '"' + (print_readably ? encode_string(s->data) : s->data) + '"';
+static string pr_string(const MalString& s, bool print_readably) {
+    return '"' + (print_readably ? encode_string(s.data) : s.data) + '"';
 }
 
-static string pr_keyword(const MalKeyword* k, bool print_readably) {
-    return ':' + k->data;
+static string pr_keyword(const MalKeyword& k, bool print_readably) {
+    return ':' + k.data;
 }
 
-string pr_str(const MalType* ast, bool print_readably) {
-    if (auto l = dynamic_cast<const MalList*>(ast)) {
-        return pr_list(l, print_readably);
-    } else if (auto n = dynamic_cast<const MalNumber*>(ast)) {
-        return pr_number(n, print_readably);
-    } else if (auto s = dynamic_cast<const MalSymbol*>(ast)) {
-        return pr_symbol(s, print_readably);
-    } else if (auto nil = dynamic_cast<const MalNil*>(ast)) {
-        return pr_nil(nil, print_readably);
-    } else if (auto b = dynamic_cast<const MalBool*>(ast)) {
-        return pr_bool(b, print_readably);
-    } else if (auto s = dynamic_cast<const MalString*>(ast)) {
-        return pr_string(s, print_readably);
-    } else if (auto k = dynamic_cast<const MalKeyword*>(ast)) {
-        return pr_keyword(k, print_readably);
-    } else if (auto v = dynamic_cast<const MalVector*>(ast)) {
-        return pr_vector(v, print_readably);
-    }
-
-    assert(!"invalid type");
+string pr_str(const MalType& ast, bool print_readably) {
+    return visit([&](auto&& v) -> string {
+        using T = decay_t<decltype(v)>;
+        if constexpr (is_same_v<T, MalList>)    return    pr_list(v, print_readably);
+        if constexpr (is_same_v<T, MalNumber>)  return  pr_number(v, print_readably);
+        if constexpr (is_same_v<T, MalSymbol>)  return  pr_symbol(v, print_readably);
+        if constexpr (is_same_v<T, MalNil>)     return     pr_nil(v, print_readably);
+        if constexpr (is_same_v<T, MalBool>)    return    pr_bool(v, print_readably);
+        if constexpr (is_same_v<T, MalString>)  return  pr_string(v, print_readably);
+        if constexpr (is_same_v<T, MalKeyword>) return pr_keyword(v, print_readably);
+        if constexpr (is_same_v<T, MalVector>)  return  pr_vector(v, print_readably);
+        return "<unknown>";
+    }, ast);
 }

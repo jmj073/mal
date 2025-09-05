@@ -56,7 +56,7 @@ public:
     { }
 };
 
-std::unique_ptr<MalType> read_str(const std::string& str);
+MalType read_str(const std::string& str);
 
 
 #endif // _READER_H_
