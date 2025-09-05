@@ -34,6 +34,8 @@ unique_ptr<MalType> read_form(Reader<T>& reader);
 template <typename T>
 unique_ptr<MalList> read_list(Reader<T>& reader);
 template <typename T>
+unique_ptr<MalVector> read_vector(Reader<T>& reader);
+template <typename T>
 unique_ptr<MalAtom> read_atom(Reader<T>& reader);
 
 static bool is_left_bracket(char c) {
@@ -122,8 +124,10 @@ unique_ptr<MalType> read_form(Reader<T>& reader) {
         throw MalSyntaxError("EOF");
     }
 
-    if (is_left_bracket(token[0])) {
+    if (token == "(") {
         return read_list(reader);
+    } else if (token == "[") {
+        return read_vector(reader);
     } else if (is_right_bracket(token[0])) {
         throw MalSyntaxError("unbalanced");
     } else if (token == "'") {
@@ -158,7 +162,7 @@ unique_ptr<MalType> read_form(Reader<T>& reader) {
 template <typename T>
 unique_ptr<MalList> read_list(Reader<T>& reader) {
     auto token = reader.next();
-    if (token.size() != 1 && !is_left_bracket(token[0])) {
+    if (token != "(") {
         throw MalSyntaxError("unbalanced");
     }
     auto ob = string() + opposite_bracket(token[0]);
@@ -178,6 +182,31 @@ unique_ptr<MalList> read_list(Reader<T>& reader) {
     reader.next();
 
     return mal_list;
+}
+
+template <typename T>
+unique_ptr<MalVector> read_vector(Reader<T>& reader) {
+    auto token = reader.next();
+    if (token != "[") {
+        throw MalSyntaxError("unbalanced");
+    }
+    auto ob = string() + opposite_bracket(token[0]);
+
+    auto mal_vector = make_unique<MalVector>();
+
+    while (reader.peek() != ob) {
+        auto token = reader.peek();
+
+        if (token.empty()) {
+            throw MalSyntaxError("unbalanced");
+        }
+
+        mal_vector->data.push_back(read_form(reader));
+    }
+
+    reader.next();
+
+    return mal_vector;
 }
 
 template <typename T>

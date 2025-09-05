@@ -25,6 +25,20 @@ public:
     T data;
 };
 
+struct MalVector: public MalType {
+private:
+    using T = std::vector<std::unique_ptr<MalType>>;
+
+public:
+    MalVector()
+        : MalType(), data()
+    { }
+    MalVector(T&& d)
+        : MalType(), data(::std::move(d))
+    { }
+    T data;
+};
+
 struct MalAtom: public MalType {
     MalAtom()
         : MalType()

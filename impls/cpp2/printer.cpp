@@ -72,6 +72,20 @@ static string pr_keyword(const MalKeyword* k, bool print_readably) {
     return ':' + k->data;
 }
 
+static string pr_vector(const MalVector* v, bool print_readably) {
+    const auto& e = v->data;
+    string ret = "[";
+
+    for (size_t i = 0; i < e.size(); ++i) {
+        ret += pr_str(e[i].get(), print_readably);
+        if (i + 1 != e.size()) {
+            ret += ' ';
+        }
+    }
+
+    return ret + "]";
+}
+
 string pr_str(const MalType* ast, bool print_readably) {
     if (auto l = dynamic_cast<const MalList*>(ast)) {
         return pr_list(l, print_readably);
@@ -87,6 +101,8 @@ string pr_str(const MalType* ast, bool print_readably) {
         return pr_string(s, print_readably);
     } else if (auto k = dynamic_cast<const MalKeyword*>(ast)) {
         return pr_keyword(k, print_readably);
+    } else if (auto v = dynamic_cast<const MalVector*>(ast)) {
+        return pr_vector(v, print_readably);
     }
 
     assert(!"invalid type");
