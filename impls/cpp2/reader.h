@@ -49,6 +49,13 @@ public:
     { }
 };
 
+class MalNoToken: public std::runtime_error {
+public:
+    MalNoToken()
+        : std::runtime_error("No token")
+    { }
+};
+
 std::unique_ptr<MalType> read_str(const std::string& str);
 
 

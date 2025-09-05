@@ -20,12 +20,10 @@ int main() {
 
     while (read_line.get(prompt, input)) {
         try {
-            if (input.empty()) {
-                continue;
-            }
             cout << rep(input) << endl;
         } catch (MalSyntaxError& e) {
             cerr << e.what() << endl;
+        } catch (MalNoToken& e) {
         }
     }
 }

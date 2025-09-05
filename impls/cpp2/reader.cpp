@@ -248,6 +248,10 @@ unique_ptr<MalAtom> read_atom(Reader<T>& reader) {
 
 unique_ptr<MalType> read_str(const string& str) {
     auto re = regex(R"([\s,]*(~@|[\[\]{}()'`~^@]|"(?:\\.|[^\\"])*"?|;.*|[^\s\[\]{}('"`,;)]*))");
-    auto reader = make_reader(tokenize(str, re));
+    auto tokenizer = tokenize(str, re);
+    if (tokenizer.begin() == tokenizer.end()) {
+        throw MalNoToken();
+    }
+    auto reader = make_reader(::std::move(tokenizer));
     return read_form(reader);
 }
