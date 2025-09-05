@@ -38,14 +38,28 @@ static string pr_list(const MalList* l, bool print_readably) {
     const auto& v = l->data;
     string ret = "(";
 
-    for (size_t i = 0; i < v.size(); ++i) {
-        ret += pr_str(v[i].get(), print_readably);
-        if (i + 1 != v.size()) {
+    for(auto it = v.begin(); it != v.end();) {
+        ret += pr_str(it->get(), print_readably);
+        if (++it == v.end()) {
+            break;
+        }
+        ret += ' ';
+    }
+    return ret + ")";
+}
+
+static string pr_vector(const MalVector* v, bool print_readably) {
+    const auto& e = v->data;
+    string ret = "[";
+
+    for (size_t i = 0; i < e.size(); ++i) {
+        ret += pr_str(e[i].get(), print_readably);
+        if (i + 1 != e.size()) {
             ret += ' ';
         }
     }
 
-    return ret + ")";
+    return ret + "]";
 }
 
 static string pr_number(const MalNumber* n, bool print_readably) {
@@ -70,20 +84,6 @@ static string pr_string(const MalString* s, bool print_readably) {
 
 static string pr_keyword(const MalKeyword* k, bool print_readably) {
     return ':' + k->data;
-}
-
-static string pr_vector(const MalVector* v, bool print_readably) {
-    const auto& e = v->data;
-    string ret = "[";
-
-    for (size_t i = 0; i < e.size(); ++i) {
-        ret += pr_str(e[i].get(), print_readably);
-        if (i + 1 != e.size()) {
-            ret += ' ';
-        }
-    }
-
-    return ret + "]";
 }
 
 string pr_str(const MalType* ast, bool print_readably) {

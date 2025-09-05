@@ -2,6 +2,7 @@
 #define _TYPES_H_
 
 #include <vector>
+#include <list>
 #include <memory>
 #include <utility>
 #include <string>
@@ -13,7 +14,7 @@ struct MalType {
 
 struct MalList: public MalType {
 private:
-    using T = std::vector<std::unique_ptr<MalType>>;
+    using T = std::list<std::unique_ptr<MalType>>;
 
 public:
     MalList()
