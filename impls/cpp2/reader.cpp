@@ -158,6 +158,12 @@ MalType read_form(Reader<T>& reader) {
         reader.next();
         l.data.push_back(read_form(reader));
         return l;
+    } else if (token == "@") {
+        auto l = MalList();
+        l.data.push_back(MalSymbol("deref"));
+        reader.next();
+        l.data.push_back(read_form(reader));
+        return l;
     } else {
         return read_atom(reader);
     }
