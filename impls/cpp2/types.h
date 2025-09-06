@@ -7,6 +7,7 @@
 #include <memory>
 #include <utility>
 #include <variant>
+#include <unordered_map>
 
 struct MalList;
 struct MalVector;
@@ -16,6 +17,7 @@ struct MalNil;
 struct MalBool;
 struct MalString;
 struct MalKeyword;
+struct MalHashmap;
 
 using MalType = std::variant<
     MalList,
@@ -25,9 +27,9 @@ using MalType = std::variant<
     MalNil,
     MalBool,
     MalString,
-    MalKeyword
+    MalKeyword,
+    MalHashmap
 >;
-
 
 struct MalList {
     std::list<MalType> data;
@@ -56,8 +58,12 @@ struct MalString {
     std::string data;
 };
 
-struct MalKeyword{
+struct MalKeyword {
     std::string data;
+};
+
+struct MalHashmap {
+    std::vector<MalType> data;
 };
 
 #endif // _TYPES_H_

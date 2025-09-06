@@ -62,6 +62,20 @@ static string pr_vector(const MalVector& v, bool print_readably) {
     return ret + "]";
 }
 
+static string pr_hashmap(const MalHashmap& v, bool print_readably) {
+    const auto& e = v.data;
+    string ret = "{";
+
+    for (size_t i = 0; i < e.size(); ++i) {
+        ret += pr_str(e[i], print_readably);
+        if (i + 1 != e.size()) {
+            ret += ' ';
+        }
+    }
+
+    return ret + "}";
+}
+
 static string pr_number(const MalNumber& n, bool print_readably) {
     return to_string(n.data);
 }
@@ -97,6 +111,7 @@ string pr_str(const MalType& ast, bool print_readably) {
         if constexpr (is_same_v<T, MalString>)  return  pr_string(v, print_readably);
         if constexpr (is_same_v<T, MalKeyword>) return pr_keyword(v, print_readably);
         if constexpr (is_same_v<T, MalVector>)  return  pr_vector(v, print_readably);
+        if constexpr (is_same_v<T, MalHashmap>) return pr_hashmap(v, print_readably);
         return "<unknown>";
     }, ast);
 }

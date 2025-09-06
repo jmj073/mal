@@ -36,6 +36,8 @@ MalList read_list(Reader<T>& reader);
 template <typename T>
 MalVector read_vector(Reader<T>& reader);
 template <typename T>
+MalHashmap read_hashmap(Reader<T>& reader);
+template <typename T>
 MalType read_atom(Reader<T>& reader);
 
 static bool is_left_bracket(char c) {
@@ -128,6 +130,8 @@ MalType read_form(Reader<T>& reader) {
         return read_list(reader);
     } else if (token == "[") {
         return read_vector(reader);
+    } else if (token == "{") {
+        return read_hashmap(reader);
     } else if (is_right_bracket(token[0])) {
         throw MalSyntaxError("unbalanced");
     } else if (token == "'") {
@@ -207,6 +211,31 @@ MalVector read_vector(Reader<T>& reader) {
     reader.next();
 
     return mal_vector;
+}
+
+template <typename T>
+MalHashmap read_hashmap(Reader<T>& reader) {
+    auto token = reader.next();
+    if (token != "{") {
+        throw MalSyntaxError("unbalanced");
+    }
+    auto ob = string() + opposite_bracket(token[0]);
+
+    auto mal_hashmap = MalHashmap();
+
+    while (reader.peek() != ob) {
+        auto token = reader.peek();
+
+        if (token.empty()) {
+            throw MalSyntaxError("unbalanced");
+        }
+
+        mal_hashmap.data.push_back(read_form(reader));
+    }
+
+    reader.next();
+
+    return mal_hashmap;
 }
 
 template <typename T>
