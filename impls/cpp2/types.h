@@ -2,7 +2,6 @@
 #define _TYPES_H_
 
 #include <vector>
-#include <list>
 #include <string>
 #include <memory>
 #include <utility>
@@ -32,7 +31,7 @@ using MalType = std::variant<
 >;
 
 struct MalList {
-    std::list<MalType> data;
+    std::vector<MalType> data;
 };
 
 struct MalVector {

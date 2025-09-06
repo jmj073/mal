@@ -35,16 +35,16 @@ static string encode_string(const string& s) {
 }
 
 static string pr_list(const MalList& l, bool print_readably) {
-    const auto& v = l.data;
+    const auto& e = l.data;
     string ret = "(";
 
-    for(auto it = v.begin(); it != v.end();) {
-        ret += pr_str(*it, print_readably);
-        if (++it == v.end()) {
-            break;
+    for (size_t i = 0; i < e.size(); ++i) {
+        ret += pr_str(e[i], print_readably);
+        if (i + 1 != e.size()) {
+            ret += ' ';
         }
-        ret += ' ';
     }
+
     return ret + ")";
 }
 
