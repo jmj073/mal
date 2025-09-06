@@ -38,11 +38,12 @@ static string pr_list(const MalList& l, bool print_readably) {
     const auto& e = l.data;
     string ret = "(";
 
-    for (size_t i = 0; i < e.size(); ++i) {
-        ret += pr_str(e[i], print_readably);
-        if (i + 1 != e.size()) {
-            ret += ' ';
+    for (auto it = e.begin(); it != e.end();) {
+        ret += pr_str(*it, print_readably);
+        if (++it == e.end()) {
+            break;
         }
+        ret += ' ';
     }
 
     return ret + ")";
@@ -66,11 +67,13 @@ static string pr_hashmap(const MalHashmap& v, bool print_readably) {
     const auto& e = v.data;
     string ret = "{";
 
-    for (size_t i = 0; i < e.size(); ++i) {
-        ret += pr_str(e[i], print_readably);
-        if (i + 1 != e.size()) {
-            ret += ' ';
+    for (auto it = e.begin(); it != e.end();) {
+        ret += pr_str(MalKeyToMalType(it->first), print_readably) + ' ';
+        ret += pr_str(it->second, print_readably);
+        if (++it == e.end()) {
+            break;
         }
+        ret += ' ';
     }
 
     return ret + "}";
@@ -103,15 +106,24 @@ static string pr_keyword(const MalKeyword& k, bool print_readably) {
 string pr_str(const MalType& ast, bool print_readably) {
     return visit([&](auto&& v) -> string {
         using T = decay_t<decltype(v)>;
-        if constexpr (is_same_v<T, MalList>)    return    pr_list(v, print_readably);
-        if constexpr (is_same_v<T, MalNumber>)  return  pr_number(v, print_readably);
-        if constexpr (is_same_v<T, MalSymbol>)  return  pr_symbol(v, print_readably);
-        if constexpr (is_same_v<T, MalNil>)     return     pr_nil(v, print_readably);
-        if constexpr (is_same_v<T, MalBool>)    return    pr_bool(v, print_readably);
-        if constexpr (is_same_v<T, MalString>)  return  pr_string(v, print_readably);
-        if constexpr (is_same_v<T, MalKeyword>) return pr_keyword(v, print_readably);
-        if constexpr (is_same_v<T, MalVector>)  return  pr_vector(v, print_readably);
-        if constexpr (is_same_v<T, MalHashmap>) return pr_hashmap(v, print_readably);
+        if constexpr (is_same_v<T, MalNumber>)
+            return pr_number(v, print_readably);
+        if constexpr (is_same_v<T, MalSymbol>)
+            return pr_symbol(v, print_readably);
+        if constexpr (is_same_v<T, MalNil>)
+            return pr_nil(v, print_readably);
+        if constexpr (is_same_v<T, MalBool>)
+            return pr_bool(v, print_readably);
+        if constexpr (is_same_v<T, MalString>)
+            return pr_string(v, print_readably);
+        if constexpr (is_same_v<T, MalKeyword>)
+            return pr_keyword(v, print_readably);
+        if constexpr (is_same_v<T, shared_ptr<MalList>>)
+            return pr_list(*v, print_readably);
+        if constexpr (is_same_v<T, shared_ptr<MalVector>>)
+            return pr_vector(*v, print_readably);
+        if constexpr (is_same_v<T, shared_ptr<MalHashmap>>)
+            return pr_hashmap(*v, print_readably);
         return "<unknown>";
     }, ast);
 }

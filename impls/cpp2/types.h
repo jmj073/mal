@@ -3,35 +3,36 @@
 
 #include <vector>
 #include <string>
+#include <list>
+#include <unordered_map>
 #include <memory>
 #include <utility>
 #include <variant>
-#include <unordered_map>
 
-struct MalList;
-struct MalVector;
 struct MalNumber;
 struct MalSymbol;
 struct MalNil;
 struct MalBool;
 struct MalString;
 struct MalKeyword;
+struct MalList;
+struct MalVector;
 struct MalHashmap;
 
 using MalType = std::variant<
-    MalList,
-    MalVector,
     MalNumber,
     MalSymbol,
     MalNil,
     MalBool,
     MalString,
     MalKeyword,
-    MalHashmap
+    std::shared_ptr<MalList>,
+    std::shared_ptr<MalVector>,
+    std::shared_ptr<MalHashmap>
 >;
 
 struct MalList {
-    std::vector<MalType> data;
+    std::list<MalType> data;
 };
 
 struct MalVector {
@@ -55,14 +56,28 @@ struct MalBool {
 
 struct MalString {
     std::string data;
+    bool operator==(const MalString&) const = default;
 };
 
 struct MalKeyword {
     std::string data;
+    bool operator==(const MalKeyword&) const = default;
 };
 
 struct MalHashmap {
-    std::vector<MalType> data;
+    using Key = std::variant<MalString, MalKeyword>;
+    struct KeyHash {
+        std::size_t operator()(const Key& k) const;
+    };
+    struct KeyEq {
+        bool operator()(const Key& a, const Key& b) const {
+            return a == b;
+        }
+    };
+    using T = std::unordered_map<Key, MalType, KeyHash, KeyEq>;
+    T data;
 };
+
+MalType MalKeyToMalType(const MalHashmap::Key& k);
 
 #endif // _TYPES_H_

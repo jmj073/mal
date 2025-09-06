@@ -23,6 +23,8 @@ int main() {
             cout << rep(input) << endl;
         } catch (MalSyntaxError& e) {
             cerr << e.what() << endl;
+        } catch(MalInvalidHashmapKey& e) {
+            cerr << e.what() << endl;
         } catch (MalNoToken& e) {
         }
     }

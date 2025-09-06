@@ -56,6 +56,13 @@ public:
     { }
 };
 
+class MalInvalidHashmapKey: public std::runtime_error {
+public:
+    MalInvalidHashmapKey()
+        : std::runtime_error("Invalid hashmap key")
+    { }
+};
+
 MalType read_str(const std::string& str);
 
 

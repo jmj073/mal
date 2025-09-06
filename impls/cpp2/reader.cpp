@@ -32,11 +32,11 @@ auto tokenize(const string& str, const regex& re);
 template <typename T>
 MalType read_form(Reader<T>& reader);
 template <typename T>
-MalList read_list(Reader<T>& reader);
+shared_ptr<MalList> read_list(Reader<T>& reader);
 template <typename T>
-MalVector read_vector(Reader<T>& reader);
+shared_ptr<MalVector> read_vector(Reader<T>& reader);
 template <typename T>
-MalHashmap read_hashmap(Reader<T>& reader);
+shared_ptr<MalHashmap> read_hashmap(Reader<T>& reader);
 template <typename T>
 MalType read_atom(Reader<T>& reader);
 
@@ -135,34 +135,34 @@ MalType read_form(Reader<T>& reader) {
     } else if (is_right_bracket(token[0])) {
         throw MalSyntaxError("unbalanced");
     } else if (token == "'") {
-        auto l = MalList();
-        l.data.push_back(MalSymbol("quote"));
         reader.next();
-        l.data.push_back(read_form(reader));
+        auto l = make_shared<MalList>();
+        l->data.push_back(MalSymbol("quote"));
+        l->data.push_back(read_form(reader));
         return l;
     } else if (token == "`") {
-        auto l = MalList();
-        l.data.push_back(MalSymbol("quasiquote"));
         reader.next();
-        l.data.push_back(read_form(reader));
+        auto l = make_shared<MalList>();
+        l->data.push_back(MalSymbol("quasiquote"));
+        l->data.push_back(read_form(reader));
         return l;
     } else if (token == "~") {
-        auto l = MalList();
-        l.data.push_back(MalSymbol("unquote"));
         reader.next();
-        l.data.push_back(read_form(reader));
+        auto l = make_shared<MalList>();
+        l->data.push_back(MalSymbol("unquote"));
+        l->data.push_back(read_form(reader));
         return l;
     } else if (token == "~@") {
-        auto l = MalList();
-        l.data.push_back(MalSymbol("splice-unquote"));
         reader.next();
-        l.data.push_back(read_form(reader));
+        auto l = make_shared<MalList>();
+        l->data.push_back(MalSymbol("splice-unquote"));
+        l->data.push_back(read_form(reader));
         return l;
     } else if (token == "@") {
-        auto l = MalList();
-        l.data.push_back(MalSymbol("deref"));
         reader.next();
-        l.data.push_back(read_form(reader));
+        auto l = make_shared<MalList>();
+        l->data.push_back(MalSymbol("deref"));
+        l->data.push_back(read_form(reader));
         return l;
     } else {
         return read_atom(reader);
@@ -170,78 +170,74 @@ MalType read_form(Reader<T>& reader) {
 }
 
 template <typename T>
-MalList read_list(Reader<T>& reader) {
+shared_ptr<MalList> read_list(Reader<T>& reader) {
     auto token = reader.next();
     if (token != "(") {
         throw MalSyntaxError("unbalanced");
     }
-    auto ob = string() + opposite_bracket(token[0]);
 
-    auto mal_list = MalList();
+    auto ob = string() + opposite_bracket(token[0]);
+    auto ls = make_shared<MalList>();
 
     while (reader.peek() != ob) {
         auto token = reader.peek();
-
-        if (token.empty()) {
-            throw MalSyntaxError("unbalanced");
-        }
-
-        mal_list.data.push_back(read_form(reader));
+        ls->data.push_back(read_form(reader));
     }
 
     reader.next();
 
-    return mal_list;
+    return ls;
 }
 
 template <typename T>
-MalVector read_vector(Reader<T>& reader) {
+shared_ptr<MalVector> read_vector(Reader<T>& reader) {
     auto token = reader.next();
     if (token != "[") {
         throw MalSyntaxError("unbalanced");
     }
-    auto ob = string() + opposite_bracket(token[0]);
 
-    auto mal_vector = MalVector();
+    auto ob = string() + opposite_bracket(token[0]);
+    auto vec = make_shared<MalVector>();
 
     while (reader.peek() != ob) {
         auto token = reader.peek();
-
-        if (token.empty()) {
-            throw MalSyntaxError("unbalanced");
-        }
-
-        mal_vector.data.push_back(read_form(reader));
+        vec->data.push_back(read_form(reader));
     }
 
     reader.next();
 
-    return mal_vector;
+    return vec;
 }
 
 template <typename T>
-MalHashmap read_hashmap(Reader<T>& reader) {
+shared_ptr<MalHashmap> read_hashmap(Reader<T>& reader) {
     auto token = reader.next();
     if (token != "{") {
         throw MalSyntaxError("unbalanced");
     }
-    auto ob = string() + opposite_bracket(token[0]);
 
-    auto mal_hashmap = MalHashmap();
+    auto ob = string() + opposite_bracket(token[0]);
+    auto hm = make_shared<MalHashmap>();
 
     while (reader.peek() != ob) {
-        auto token = reader.peek();
+        auto k = visit([](auto&& v) -> MalHashmap::Key {
+            using U = decay_t<decltype(v)>;
+            if constexpr (is_same_v<U, MalString>) return v;
+            if constexpr (is_same_v<U, MalKeyword>) return v;
+            throw MalInvalidHashmapKey();
+        }, read_form(reader));
+        auto v = read_form(reader);
 
-        if (token.empty()) {
-            throw MalSyntaxError("unbalanced");
+        if (hm->data.contains(k)) {
+            throw MalInvalidHashmapKey();
         }
 
-        mal_hashmap.data.push_back(read_form(reader));
+        hm->data[::std::move(k)] = v;
     }
 
     reader.next();
 
-    return mal_hashmap;
+    return hm;
 }
 
 template <typename T>
