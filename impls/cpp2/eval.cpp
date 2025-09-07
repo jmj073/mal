@@ -30,6 +30,22 @@ MalType eval(const MalType& ast, MalEnv& env) {
             vector<MalType> args(++it, it_end);
             return fn->data(args);
         }
+        if constexpr (is_same_v<T, shared_ptr<MalVector>>) {
+            auto r = v->data
+                | views::transform([&](auto&& expr) { return eval(expr, env); });
+            auto vec = make_shared<MalVector>();
+            vec->data = vector<MalType>(r.begin(), r.end());
+            return vec;
+        }
+        if constexpr (is_same_v<T, shared_ptr<MalHashmap>>) {
+            auto r = v->data
+                | views::transform([&](auto&& kv) {
+                    return make_pair(kv.first, eval(kv.second, env));
+                });
+            auto hm = make_shared<MalHashmap>();
+            hm->data = MalHashmap::T(r.begin(), r.end());
+            return hm;
+        }
         return v;
     }, ast);
 }
