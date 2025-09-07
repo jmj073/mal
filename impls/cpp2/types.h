@@ -8,6 +8,7 @@
 #include <memory>
 #include <utility>
 #include <variant>
+#include <functional>
 
 struct MalNumber;
 struct MalSymbol;
@@ -18,6 +19,7 @@ struct MalKeyword;
 struct MalList;
 struct MalVector;
 struct MalHashmap;
+struct MalFunction;
 
 using MalType = std::variant<
     MalNumber,
@@ -28,7 +30,8 @@ using MalType = std::variant<
     MalKeyword,
     std::shared_ptr<MalList>,
     std::shared_ptr<MalVector>,
-    std::shared_ptr<MalHashmap>
+    std::shared_ptr<MalHashmap>,
+    std::shared_ptr<MalFunction>
 >;
 
 struct MalList {
@@ -76,6 +79,10 @@ struct MalHashmap {
     };
     using T = std::unordered_map<Key, MalType, KeyHash, KeyEq>;
     T data;
+};
+
+struct MalFunction {
+    std::function<MalType(const std::vector<MalType>&)> data;
 };
 
 MalType MalKeyToMalType(const MalHashmap::Key& k);
