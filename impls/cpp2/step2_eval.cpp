@@ -101,6 +101,7 @@ static ReplEnv repl_env = {
     { "-", make_shared<MalFunction>(mal_minus) },
     { "*", make_shared<MalFunction>(mal_multiply) },
     { "/", make_shared<MalFunction>(mal_divide) },
+    { "DEBUG-EVAL", MalBool(false) },
 };
 
 static MalType READ(const string& in);
@@ -123,6 +124,8 @@ int main() {
             cerr << e.what() << endl;
         } catch (MalEvalFailed& e) {
             cout << e.what() << endl;
+        } catch (MalSymbolNotFound& e) {
+            cout << e.what() << endl;
         } catch (MalNoToken& e) {
         }
     }
@@ -132,7 +135,32 @@ static MalType READ(const string& in) {
     return read_str(in);
 }
 
+static void print_debug_eval_if_activated(const MalType& ast, const ReplEnv& env) {
+    auto it = env.find("DEBUG-EVAL");
+
+    if (it == env.end()) {
+        return;
+    }
+
+    bool active = visit([](auto&& v) {
+        using T = decay_t<decltype(v)>;
+        if constexpr (is_same_v<T, MalNil>)
+            return false;
+        if constexpr (is_same_v<T, MalBool>)
+            return v.data;
+        return true;
+    }, it->second);
+
+    if (!active) {
+        return;
+    }
+
+    cout << "EVAL: " << pr_str(ast, true) << endl;
+}
+
 static MalType EVAL(const MalType& ast, ReplEnv& env) {
+    print_debug_eval_if_activated(ast, env);
+
     return visit([&](auto&& v) -> MalType {
         using T = decay_t<decltype(v)>;
         if constexpr (is_same_v<T, MalSymbol>) {
