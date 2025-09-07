@@ -5,6 +5,17 @@
 
 using namespace std;
 
+static MalType apply(const MalList& ls) {
+    auto it = ls.data.begin();
+    auto it_end = ls.data.end();
+    auto fn = echanger(
+        [&](){ return unwrap_variant<shared_ptr<MalFunction>>(*it); },
+        MalEvalFailed("not a function")
+    );
+    vector<MalType> args(++it, it_end);
+    return fn->data(args);
+}
+
 MalType eval(const MalType& ast, MalEnv& env) {
     return visit([&](auto&& v) -> MalType {
         using T = decay_t<decltype(v)>;
@@ -21,20 +32,15 @@ MalType eval(const MalType& ast, MalEnv& env) {
             }
             auto r = v->data
                 | views::transform([&](auto&& expr) { return eval(expr, env); });
-            auto it = r.begin();
-            auto it_end = r.end();
-            auto fn = echanger(
-                [&](){ return unwrap_variant<shared_ptr<MalFunction>>(*it); },
-                MalEvalFailed("not a function")
-            );
-            vector<MalType> args(++it, it_end);
-            return fn->data(args);
+            auto ls = MalList();
+            ls.data = MalList::T(r.begin(), r.end());
+            return apply(ls);
         }
         if constexpr (is_same_v<T, shared_ptr<MalVector>>) {
             auto r = v->data
                 | views::transform([&](auto&& expr) { return eval(expr, env); });
             auto vec = make_shared<MalVector>();
-            vec->data = vector<MalType>(r.begin(), r.end());
+            vec->data = MalVector::T(r.begin(), r.end());
             return vec;
         }
         if constexpr (is_same_v<T, shared_ptr<MalHashmap>>) {

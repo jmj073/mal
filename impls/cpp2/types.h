@@ -35,35 +35,42 @@ using MalType = std::variant<
 >;
 
 struct MalList {
-    std::list<MalType> data;
+    using T = std::list<MalType>;
+    T data;
 };
 
 struct MalVector {
-    std::vector<MalType> data;
+    using T = std::vector<MalType>;
+    T data;
 };
 
 struct MalNumber {
-    int data;
+    using T = int;
+    T data;
 };
 
 struct MalSymbol {
-    std::string data;
+    using T = std::string;
+    T data;
 };
 
 struct MalNil {
 };
 
 struct MalBool {
-    bool data;
+    using T = bool;
+    T data;
 };
 
 struct MalString {
-    std::string data;
+    using T = std::string;
+    T data;
     bool operator==(const MalString&) const = default;
 };
 
 struct MalKeyword {
-    std::string data;
+    using T = std::string;
+    T data;
     bool operator==(const MalKeyword&) const = default;
 };
 
