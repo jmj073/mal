@@ -8,7 +8,7 @@
 using namespace std;
 using namespace filesystem;
 
-string copyNfree(char* str) {
+static string copyNfree(char* str) {
     string ret = str;
     free(str);
     return ret;

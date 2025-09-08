@@ -1,4 +1,3 @@
-#include <cassert>
 #include <regex>
 
 #include "printer.h"

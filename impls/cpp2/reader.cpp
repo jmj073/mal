@@ -1,5 +1,4 @@
 #include <regex>
-#include <cassert>
 #include <cctype>
 #include <cstdio>
 
@@ -26,19 +25,6 @@ private:
     const string* m_str;
     const regex* m_re;
 };
-
-auto tokenize(const string& str, const regex& re);
-
-template <typename T>
-MalType read_form(Reader<T>& reader);
-template <typename T>
-shared_ptr<MalList> read_list(Reader<T>& reader);
-template <typename T>
-shared_ptr<MalVector> read_vector(Reader<T>& reader);
-template <typename T>
-shared_ptr<MalHashmap> read_hashmap(Reader<T>& reader);
-template <typename T>
-MalType read_atom(Reader<T>& reader);
 
 static bool is_left_bracket(char c) {
     constexpr string_view brackets = "({[";
@@ -111,13 +97,23 @@ static string decode_string(const string& s) {
     return result;
 }
 
-
 auto tokenize(const string& str, const regex& re) {
     return regex_view(str, re)
         | views::transform([] (const auto& m) { return m[1].matched ? m[1].str() : m.str(); })
         | views::filter([] (auto token) { return !token.empty(); })
         | views::filter([] (auto token) { return token[0] != ';'; });
 }
+
+template <typename T>
+MalType read_form(Reader<T>& reader);
+template <typename T>
+shared_ptr<MalList> read_list(Reader<T>& reader);
+template <typename T>
+shared_ptr<MalVector> read_vector(Reader<T>& reader);
+template <typename T>
+shared_ptr<MalHashmap> read_hashmap(Reader<T>& reader);
+template <typename T>
+MalType read_atom(Reader<T>& reader);
 
 template <typename T>
 MalType read_form(Reader<T>& reader) {
