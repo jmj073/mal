@@ -44,8 +44,9 @@ auto make_reader(T&& tokenizer) {
 
 class MalSyntaxError: public std::runtime_error {
 public:
-    MalSyntaxError(const char* msg)
-        : std::runtime_error(msg)
+    template <typename ...Types>
+    MalSyntaxError(Types&& ...args)
+        : std::runtime_error(std::forward<Types>(args)...)
     { }
 };
 

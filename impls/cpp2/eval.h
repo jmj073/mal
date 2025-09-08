@@ -9,8 +9,9 @@
 
 class MalEvalFailed: public std::runtime_error {
 public:
-    MalEvalFailed(const char* msg)
-        : std::runtime_error(msg)
+    template <typename ...Types>
+    MalEvalFailed(Types&& ...args)
+        : std::runtime_error(std::forward<Types>(args)...)
     { }
 };
 
@@ -19,7 +20,7 @@ MalType eval(const MalType& ast, MalEnv& env);
 template <typename T>
 auto arg_transformer(const MalType& arg) {
     return echanger(
-        [&](){ return unwrap_variant<T>(arg); },
+        [&]() { return get<T>(arg); },
         MalEvalFailed("invalid argument type")
     );
 }
