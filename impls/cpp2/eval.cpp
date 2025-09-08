@@ -1,12 +1,33 @@
 #include <ranges>
 #include <map>
 #include <cassert>
+#include <iostream>
 
 #include "eval.h"
 #include "util.h"
+#include "printer.h"
 
 using namespace std;
 using namespace ranges;
+
+static void print_debug_eval_if_activated(const MalType& ast, const MalEnv& env) {
+    auto opt = env.get("DEBUG-EVAL");
+
+    if (!opt) return;
+
+    bool active = visit([](auto&& v) {
+        using T = decay_t<decltype(v)>;
+        if constexpr (is_same_v<T, MalNil>)
+            return false;
+        if constexpr (is_same_v<T, MalBool>)
+            return v.data;
+        return true;
+    }, *opt);
+
+    if (!active) return;
+
+    cout << "EVAL: " << pr_str(ast, true) << endl;
+}
 
 static MalType def_if_valid(const MalType& k, const MalType& v, MalEnv& env) {
     auto var_name = echanger(
@@ -89,6 +110,8 @@ static MalType apply(const MalList& ls) {
 }
 
 MalType eval(const MalType& ast, MalEnv& env) {
+    print_debug_eval_if_activated(ast, env);
+
     return visit([&](auto&& v) -> MalType {
         using T = decay_t<decltype(v)>;
         if constexpr (is_same_v<T, MalSymbol>) {

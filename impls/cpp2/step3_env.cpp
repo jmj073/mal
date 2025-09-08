@@ -37,27 +37,7 @@ static MalType READ(const string& in) {
     return read_str(in);
 }
 
-static void print_debug_eval_if_activated(const MalType& ast, const MalEnv& env) {
-    auto opt = env.get("DEBUG-EVAL");
-
-    if (!opt) return;
-
-    bool active = visit([](auto&& v) {
-        using T = decay_t<decltype(v)>;
-        if constexpr (is_same_v<T, MalNil>)
-            return false;
-        if constexpr (is_same_v<T, MalBool>)
-            return v.data;
-        return true;
-    }, *opt);
-
-    if (!active) return;
-
-    cout << "EVAL: " << pr_str(ast, true) << endl;
-}
-
 static MalType EVAL(const MalType& ast, MalEnv& env) {
-    print_debug_eval_if_activated(ast, env);
     return eval(ast, env);
 }
 
