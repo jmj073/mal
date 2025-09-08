@@ -6,22 +6,41 @@
 #include "util.h"
 
 using namespace std;
+using namespace ranges;
+
+static MalType def_if_valid(const MalType& k, const MalType& v, MalEnv& env) {
+    auto var_name = echanger(
+        [&]() { return get<MalSymbol>(k); },
+        MalEvalFailed("not a symbol")
+    ).data;
+    auto value = eval(v, env);
+
+    env.set(std::move(var_name), value);
+
+    return value;
+}
+
+template <typename T>
+static void let_def(const T& cont, MalEnv& env) {
+    if (cont.size() % 2) {
+        throw MalEvalFailed("invalid let* def count");
+    }
+    for (auto it = cont.begin(); it != cont.end();) {
+        auto k = it++;
+        auto v = it++;
+        def_if_valid(*k, *v, env);
+    }
+}
 
 static MalType core_form_def(const MalList& ls, MalEnv& env) {
     assert(ls.data.size() == 3);
     auto it = ls.data.begin();
     assert(get<MalSymbol>(*it++).data == "def!");
 
-    auto var_name = echanger(
-        [&]() { return get<MalSymbol>(*it++); },
-        MalEvalFailed("not a symbol")
-    ).data;
+    auto var_name_it = it++;
+    auto expr_it = it;
 
-    auto value = eval(*it, env);
-
-    env.set(std::move(var_name), std::move(value));
-
-    return value;
+    return def_if_valid(*var_name_it, *expr_it, env);
 }
 
 static MalType core_form_let(const MalList& ls, MalEnv& env) {
@@ -30,26 +49,19 @@ static MalType core_form_let(const MalList& ls, MalEnv& env) {
     assert(get<MalSymbol>(*it++).data == "let*");
 
     MalEnv let_env(&env);
-    
-    auto def_ls = echanger(
-        [&]() { return get<shared_ptr<MalList>>(*it++); },
-        MalEvalFailed("not a list")
-    )->data;
 
-    if (def_ls.size() % 2) {
-        throw MalEvalFailed("invalid let* def count");
-    }
-
-    for (auto it = def_ls.begin(); it != def_ls.end();) {
-        auto var_name = echanger(
-            [&]() { return get<MalSymbol>(*it++); },
-            MalEvalFailed("not a symbol")
-        ).data;
-
-        auto value = eval(*it++, let_env);
-
-        let_env.set(std::move(var_name), std::move(value));
-    }
+    visit([&](auto&& cont) {
+        using T = decay_t<decltype(cont)>;
+        if constexpr (is_same_v<T, shared_ptr<MalList>>) {
+            let_def(cont->data, let_env);
+            return;
+        }
+        if constexpr (is_same_v<T, shared_ptr<MalVector>>) {
+            let_def(cont->data, let_env);
+            return;
+        }
+        throw MalEvalFailed("invalid let* form");
+    }, *it++);
 
     MalType ret = MalNil();
 
