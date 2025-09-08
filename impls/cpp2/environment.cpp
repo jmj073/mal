@@ -48,10 +48,11 @@ static MalType mal_divide(const vector<MalType>& args) {
     return MalNumber(vec[0] / accumulate(vec.begin() + 1, vec.end(), 1, multiplies<>()));
 }
 
-MalEnv repl_env(nullptr, {
+shared_ptr<MalEnv> repl_env( new MalEnv(
+    nullptr, {
     { "+", make_shared<MalFunction>(mal_plus) },
     { "-", make_shared<MalFunction>(mal_minus) },
     { "*", make_shared<MalFunction>(mal_multiply) },
     { "/", make_shared<MalFunction>(mal_divide) },
     { "DEBUG-EVAL", MalBool(false) },
-});
+}));

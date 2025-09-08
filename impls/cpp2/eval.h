@@ -15,7 +15,7 @@ public:
     { }
 };
 
-MalType eval(const MalType& ast, MalEnv& env);
+MalType eval(const MalType& ast, std::shared_ptr<MalEnv> env);
 
 template <typename T>
 auto arg_transformer(const MalType& arg) {

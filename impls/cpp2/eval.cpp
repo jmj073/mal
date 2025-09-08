@@ -29,31 +29,29 @@ static void print_debug_eval_if_activated(const MalType& ast, const MalEnv& env)
     cout << "EVAL: " << pr_str(ast, true) << endl;
 }
 
-static MalType def_if_valid(const MalType& k, const MalType& v, MalEnv& env) {
+static MalType def_if_valid(const MalType& k, const MalType& v, shared_ptr<MalEnv> env) {
     auto var_name = echanger(
         [&]() { return get<MalSymbol>(k); },
         MalEvalFailed("not a symbol")
     ).data;
     auto value = eval(v, env);
 
-    env.set(std::move(var_name), value);
+    env->set(std::move(var_name), value);
 
     return value;
 }
 
 template <typename T>
-static void let_def(const T& cont, MalEnv& env) {
+static void let_def(T&& cont, shared_ptr<MalEnv> env) {
     if (cont.size() % 2) {
         throw MalEvalFailed("invalid let* def count");
     }
-    for (auto it = cont.begin(); it != cont.end();) {
-        auto k = it++;
-        auto v = it++;
-        def_if_valid(*k, *v, env);
+    for (auto&& chunk: cont | views::chunk(2)) {
+        def_if_valid(*chunk.begin(), *++chunk.begin(), env);
     }
 }
 
-static MalType core_form_def(const MalList& ls, MalEnv& env) {
+static MalType core_form_def(const MalList& ls, shared_ptr<MalEnv> env) {
     assert(ls.data.size() == 3);
     auto it = ls.data.begin();
     assert(get<MalSymbol>(*it++).data == "def!");
@@ -64,12 +62,12 @@ static MalType core_form_def(const MalList& ls, MalEnv& env) {
     return def_if_valid(*var_name_it, *expr_it, env);
 }
 
-static MalType core_form_let(const MalList& ls, MalEnv& env) {
+static MalType core_form_let(const MalList& ls, shared_ptr<MalEnv> env) {
     assert(ls.data.size() >= 2);
     auto it = ls.data.begin();
     assert(get<MalSymbol>(*it++).data == "let*");
 
-    MalEnv let_env(&env);
+    auto let_env = make_shared<MalEnv>(env);
 
     visit([&](auto&& cont) {
         using T = decay_t<decltype(cont)>;
@@ -93,9 +91,72 @@ static MalType core_form_let(const MalList& ls, MalEnv& env) {
     return ret;
 }
 
-static map<string, function<MalType(const MalList&, MalEnv&)>> core_form = {
+static MalType core_form_do(const MalList& ls, shared_ptr<MalEnv> env) {
+    assert(ls.data.size() > 1);
+    auto it = ls.data.begin();
+    assert(get<MalSymbol>(*it++).data == "do");
+
+    MalType ret = MalNil();
+
+    while (it != ls.data.end()) {
+        ret = eval(*it++, env);
+    }
+
+    return ret;
+}
+
+static MalType core_form_if(const MalList& ls, shared_ptr<MalEnv> env) {
+    assert(ls.data.size() == 3 || ls.data.size() == 4);
+    auto it = ls.data.begin();
+    assert(get<MalSymbol>(*it++).data == "if");
+
+    bool cond = visit([](auto&& v) {
+        using T = decay_t<decltype(v)>;
+        if constexpr (is_same_v<T, MalNil>)
+            return false;
+        if constexpr (is_same_v<T, MalBool>)
+            return v.data;
+        return true;
+    }, *it++);
+
+    if (cond) return eval(*it, env);
+    return (ls.data.size() == 4 ? eval(*++it, env) : MalNil());
+}
+
+static MalType core_form_fn(const MalList& ls, shared_ptr<MalEnv> env) {
+    assert(ls.data.size() >= 2);
+    assert(get<MalSymbol>(ls.data.front()).data == "fn*");
+
+    return make_shared<MalFunction>(
+        [=](const vector<MalType>& args) {
+            auto it = ++ls.data.begin();
+
+            list<MalType> tmp_list = get<shared_ptr<MalList>>(*it++)->data;
+            list<string> param_list;
+
+            for (auto& v: tmp_list) {
+                param_list.push_back(get<MalSymbol>(v).data);
+            }
+
+            auto fn_env = make_shared<MalEnv>(env, param_list, args);
+
+            MalType ret = MalNil();
+
+            while (it != ls.data.end()) {
+                ret = eval(*it++, fn_env);
+            }
+
+            return ret;
+        }
+    );
+}
+
+static map<string, function<MalType(const MalList&, shared_ptr<MalEnv>)>> core_form = {
     { "def!", core_form_def },
     { "let*", core_form_let },
+    { "do", core_form_do },
+    { "if", core_form_if },
+    { "fn*", core_form_fn },
 };
 
 static MalType apply(const MalList& ls) {
@@ -109,15 +170,15 @@ static MalType apply(const MalList& ls) {
     return fn->data(args);
 }
 
-MalType eval(const MalType& ast, MalEnv& env) {
-    print_debug_eval_if_activated(ast, env);
+MalType eval(const MalType& ast, shared_ptr<MalEnv> env) {
+    print_debug_eval_if_activated(ast, *env);
 
     return visit([&](auto&& v) -> MalType {
         using T = decay_t<decltype(v)>;
         if constexpr (is_same_v<T, MalSymbol>) {
-            auto opt = env.get(v.data);
+            auto opt = env->get(v.data);
             if (!opt) {
-                throw MalEvalFailed(v.data + " not found");
+                throw MalEvalFailed("'" + v.data + "' not found");
             }
             return *opt;
         }

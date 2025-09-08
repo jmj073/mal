@@ -124,6 +124,8 @@ string pr_str(const MalType& ast, bool print_readably) {
             return pr_vector(*v, print_readably);
         if constexpr (is_same_v<T, shared_ptr<MalHashmap>>)
             return pr_hashmap(*v, print_readably);
+        if constexpr (is_same_v<T, shared_ptr<MalFunction>>)
+            return "#<function>";
         return "<unknown>";
     }, ast);
 }
