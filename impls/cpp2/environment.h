@@ -21,7 +21,7 @@ public:
     { }
 
     template <typename T, typename U>
-    MalEnv(Outer outer = nullptr, T&& binds = {}, U&& exprs = {})
+    MalEnv(Outer outer, T&& binds, U&& exprs)
         : m_outer(std::move(outer)), m_hashmap()
     {
         assert(binds.size() == exprs.size());

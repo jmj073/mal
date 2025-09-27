@@ -57,10 +57,10 @@ public:
     { }
 };
 
-class MalInvalidHashmapKey: public std::runtime_error {
+class MalInvalidHashmapKey: public MalSyntaxError {
 public:
     MalInvalidHashmapKey()
-        : std::runtime_error("Invalid hashmap key")
+        : MalSyntaxError("Invalid hashmap key")
     { }
 };
 

@@ -5,6 +5,7 @@
 #include "reader.h"
 #include "printer.h"
 #include "eval.h"
+#include "core.h"
 
 using namespace std;
 
@@ -15,7 +16,15 @@ static string rep(const string& in);
 
 static ReadLine read_line("~/.mal-history");
 
+static void add_core_fn(MalEnv& env) {
+    for (auto& [k, v]: core_fn) {
+        env.set(k, make_shared<MalFunction>(v));
+    }
+}
+
 int main() {
+    add_core_fn(*repl_env);
+
     const string prompt = "user> ";
     string input;
 
@@ -23,8 +32,6 @@ int main() {
         try {
             cout << rep(input) << endl;
         } catch (MalSyntaxError& e) {
-            cerr << e.what() << endl;
-        } catch (MalInvalidHashmapKey& e) {
             cerr << e.what() << endl;
         } catch (MalEvalFailed& e) {
             cout << e.what() << endl;

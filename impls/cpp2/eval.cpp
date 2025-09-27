@@ -110,6 +110,7 @@ static MalType core_form_if(const MalList& ls, shared_ptr<MalEnv> env) {
     auto it = ls.data.begin();
     assert(get<MalSymbol>(*it++).data == "if");
 
+    auto cond_tmp = eval(*it++, env);
     bool cond = visit([](auto&& v) {
         using T = decay_t<decltype(v)>;
         if constexpr (is_same_v<T, MalNil>)
@@ -117,7 +118,7 @@ static MalType core_form_if(const MalList& ls, shared_ptr<MalEnv> env) {
         if constexpr (is_same_v<T, MalBool>)
             return v.data;
         return true;
-    }, *it++);
+    }, cond_tmp);
 
     if (cond) return eval(*it, env);
     return (ls.data.size() == 4 ? eval(*++it, env) : MalNil());
@@ -125,20 +126,29 @@ static MalType core_form_if(const MalList& ls, shared_ptr<MalEnv> env) {
 
 static MalType core_form_fn(const MalList& ls, shared_ptr<MalEnv> env) {
     assert(ls.data.size() >= 2);
-    assert(get<MalSymbol>(ls.data.front()).data == "fn*");
+    auto it = ls.data.begin();
+    assert(get<MalSymbol>(*it++).data == "fn*");
+
+    auto param_list = visit([](auto&& params) -> list<string> {
+        using T = decay_t<decltype(params)>;
+        if constexpr (is_same_v<T, shared_ptr<MalList>>
+                || is_same_v<T, shared_ptr<MalVector>>) {
+            list<string> param_list;
+
+            for (auto& arg_name: params->data) {
+                param_list.push_back(get<MalSymbol>(arg_name).data);
+            }
+
+            return param_list;
+        }
+        throw MalEvalFailed("invalid let* form");
+    }, *it++);
 
     return make_shared<MalFunction>(
         [=](const vector<MalType>& args) {
-            auto it = ++ls.data.begin();
-
-            list<MalType> tmp_list = get<shared_ptr<MalList>>(*it++)->data;
-            list<string> param_list;
-
-            for (auto& v: tmp_list) {
-                param_list.push_back(get<MalSymbol>(v).data);
-            }
-
             auto fn_env = make_shared<MalEnv>(env, param_list, args);
+            auto it = ls.data.begin();
+            std::advance(it, 2);
 
             MalType ret = MalNil();
 
