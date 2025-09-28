@@ -180,49 +180,67 @@ static MalType apply(const MalList& ls) {
     return fn->data(args);
 }
 
+static MalType eval_symbol(const MalSymbol& sym, shared_ptr<MalEnv> env) {
+    auto opt = env->get(sym.data);
+    if (!opt) {
+        throw MalEvalFailed("'" + sym.data + "' not found");
+    }
+    return *opt;
+}
+
+static MalType eval_list(const shared_ptr<MalList>& ls, shared_ptr<MalEnv> env) {
+    if (ls->data.empty()) {
+        return ls;
+    }
+
+    if (holds_alternative<MalSymbol>(ls->data.front())) {
+        const string& s = get<MalSymbol>(ls->data.front()).data;
+        auto it = core_form.find(s);
+        if (it != core_form.end())
+            return it->second(*ls, env);
+    }
+
+    auto r = ls->data
+        | views::transform([&](auto&& expr) { return eval(expr, env); });
+    auto ret = MalList();
+    ret.data = MalList::T(r.begin(), r.end());
+    return apply(ret);
+}
+
+static MalType eval_vector(const shared_ptr<MalVector>& vec, shared_ptr<MalEnv> env) {
+    auto r = vec->data
+        | views::transform([&](auto&& expr) { return eval(expr, env); });
+    auto ret = make_shared<MalVector>();
+    ret->data = MalVector::T(r.begin(), r.end());
+    return ret;
+}
+
+static MalType eval_hashmap(const shared_ptr<MalHashmap>& hm, shared_ptr<MalEnv> env) {
+    auto r = hm->data
+        | views::transform([&](auto&& kv) {
+            return make_pair(kv.first, eval(kv.second, env));
+        });
+    auto ret = make_shared<MalHashmap>();
+    ret->data = MalHashmap::T(r.begin(), r.end());
+    return ret;
+}
+
 MalType eval(const MalType& ast, shared_ptr<MalEnv> env) {
     print_debug_eval_if_activated(ast, *env);
 
     return visit([&](auto&& v) -> MalType {
         using T = decay_t<decltype(v)>;
         if constexpr (is_same_v<T, MalSymbol>) {
-            auto opt = env->get(v.data);
-            if (!opt) {
-                throw MalEvalFailed("'" + v.data + "' not found");
-            }
-            return *opt;
+            return eval_symbol(v, env);
         }
         if constexpr (is_same_v<T, shared_ptr<MalList>>) {
-            if (v->data.empty()) {
-                return v;
-            }
-            if (holds_alternative<MalSymbol>(v->data.front())) {
-                const string& s = get<MalSymbol>(v->data.front()).data;
-                auto it = core_form.find(s);
-                if (it != core_form.end())
-                    return it->second(*v, env);
-            }
-            auto r = v->data
-                | views::transform([&](auto&& expr) { return eval(expr, env); });
-            auto ls = MalList();
-            ls.data = MalList::T(r.begin(), r.end());
-            return apply(ls);
+            return eval_list(v, env);
         }
         if constexpr (is_same_v<T, shared_ptr<MalVector>>) {
-            auto r = v->data
-                | views::transform([&](auto&& expr) { return eval(expr, env); });
-            auto vec = make_shared<MalVector>();
-            vec->data = MalVector::T(r.begin(), r.end());
-            return vec;
+            return eval_vector(v, env);
         }
         if constexpr (is_same_v<T, shared_ptr<MalHashmap>>) {
-            auto r = v->data
-                | views::transform([&](auto&& kv) {
-                    return make_pair(kv.first, eval(kv.second, env));
-                });
-            auto hm = make_shared<MalHashmap>();
-            hm->data = MalHashmap::T(r.begin(), r.end());
-            return hm;
+            return eval_hashmap(v, env);
         }
         return v;
     }, ast);
