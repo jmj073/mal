@@ -189,7 +189,7 @@ static MalType eval_symbol(const MalSymbol& sym, shared_ptr<MalEnv> env) {
 
 static MalType eval_list(const shared_ptr<MalList>& ls, shared_ptr<MalEnv> env) {
     if (ls->data.empty()) {
-        return ls;
+        return make_shared<MalList>();
     }
 
     if (holds_alternative<MalSymbol>(ls->data.front())) {
