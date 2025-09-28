@@ -3,6 +3,7 @@
 
 #include <variant>
 #include <type_traits>
+#include <regex>
 
 template <typename F, typename T>
 auto echanger(F f, T e) {
@@ -21,5 +22,11 @@ inline constexpr bool is_shared_ptr_v = false;
 
 template <typename T>
 inline constexpr bool is_shared_ptr_v<std::shared_ptr<T>> = true;
+
+std::string regex_replace_callback(
+    const std::string& input,
+    const std::regex& re,
+    const std::function<std::string(const std::smatch&)>& callback
+);
 
 #endif // _MY_UTIL_H_

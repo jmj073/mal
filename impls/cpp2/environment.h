@@ -24,12 +24,16 @@ public:
     MalEnv(Outer outer, T&& binds, U&& exprs)
         : m_outer(std::move(outer)), m_hashmap()
     {
-        assert(binds.size() == exprs.size());
-
         auto itk = binds.begin();
         auto itv = exprs.begin();
 
         while (itk != binds.end()) {
+            if (*itk == "&") {
+                auto ls = std::make_shared<MalList>();
+                ls->data = MalList::T(itv, exprs.end());
+                m_hashmap[*++itk] = ls;
+                break;
+            }
             m_hashmap[*itk++] = *itv++;
         }
     }

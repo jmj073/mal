@@ -20,6 +20,7 @@ static void add_core_fn(MalEnv& env) {
     for (auto& [k, v]: core_fn) {
         env.set(k, make_shared<MalFunction>(v));
     }
+    rep("(def! not (fn* (a) (if a false true)))");
 }
 
 int main() {

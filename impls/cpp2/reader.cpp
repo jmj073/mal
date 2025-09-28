@@ -3,6 +3,7 @@
 #include <cstdio>
 
 #include "reader.h"
+#include "util.h"
 
 using namespace std;
 using namespace ranges;
@@ -58,43 +59,20 @@ static bool is_balanced_string(const string& s) {
     return regex_match(s, balanced);
 }
 
+
 static string decode_string(const string& s) {
-    string out = s;
-
-    // 단순 치환
-    out = regex_replace(out, regex(R"(\\n)"), "\n");
-    out = regex_replace(out, regex(R"(\\t)"), "\t");
-    out = regex_replace(out, regex(R"(\\r)"), "\r");
-    out = regex_replace(out, regex(R"(\\\")"), "\"");
-    out = regex_replace(out, regex(R"(\\\\)"), "\\");
-
-    // \xHH 유니코드 처리
-    regex hexPattern(R"(\\x([0-9A-Fa-f]+);)");
-    smatch match;
-    string result;
-    string::const_iterator searchStart(out.cbegin());
-
-    while (regex_search(searchStart, out.cend(), match, hexPattern)) {
-        result.append(match.prefix()); // 매치 전까지 복사
-        int code = stoi(match[1].str(), nullptr, 16);
-
-        // 간단하게 BMP 영역까지만 UTF-8 변환
-        if (code <= 0x7F) {
-            result.push_back(static_cast<char>(code));
-        } else if (code <= 0x7FF) {
-            result.push_back(0xC0 | (code >> 6));
-            result.push_back(0x80 | (code & 0x3F));
-        } else {
-            result.push_back(0xE0 | (code >> 12));
-            result.push_back(0x80 | ((code >> 6) & 0x3F));
-            result.push_back(0x80 | (code & 0x3F));
-        }
-
-        searchStart = match.suffix().first; // 다음 검색 위치 갱신
-    }
-    result.append(searchStart, out.cend()); // 마지막 부분 복사
-
-    return result;
+    return regex_replace_callback(s, regex(R"(\\\\|\\n|\\t|\\r|\\b|\\")"),
+        [] (const smatch& m) -> string {
+            switch (m.str()[1]) {
+                case '\\': return "\\";
+                case 'n': return "\n";
+                case 't': return "\t";
+                case 'r': return "\r";
+                case 'b': return "\b";
+                case '"': return "\"";
+            }
+            return "";
+        });
 }
 
 auto tokenize(const string& str, const regex& re) {

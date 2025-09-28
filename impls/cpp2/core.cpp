@@ -10,6 +10,29 @@
 
 using namespace std;
 
+static string tostr(const vector<MalType>& args, const string& sep, bool print_readably) {
+    auto r = args
+        | views::transform([=](auto&& arg) { return pr_str(arg, print_readably); });
+    vector<string> strs(r.begin(), r.end());
+
+    string ret;
+
+    for (size_t i = 0; i < strs.size(); ++i) {
+        ret += strs[i];
+        if (i + 1 != strs.size()) {
+            ret += sep;
+        }
+    }
+
+    return ret;
+}
+
+static shared_ptr<MalList> vec2ls(shared_ptr<MalVector> vec) {
+    auto ls = make_shared<MalList>();
+    ls->data = MalList::T(vec->data.begin(), vec->data.end());
+    return ls;
+}
+
 static MalType mal_plus(const vector<MalType>& args) {
     auto int_args = args
         | views::transform(arg_transformer<MalNumber>)
@@ -52,16 +75,6 @@ static MalType mal_divide(const vector<MalType>& args) {
     return MalNumber(vec[0] / accumulate(vec.begin() + 1, vec.end(), 1, multiplies<>()));
 }
 
-static MalType mal_prn(const vector<MalType>& args) {
-    if (args.size() != 1) {
-        throw MalEvalFailed("invalid argument count");
-    }
-
-    cout << pr_str(args.front(), true) << endl;
-
-    return MalNil();
-}
-
 static MalType mal_list(const vector<MalType>& args) {
     return make_shared<MalList>(list<MalType>(args.begin(), args.end()));
 }
@@ -83,6 +96,8 @@ static MalType mal_is_empty(const vector<MalType>& args) {
 
         if constexpr (is_same_v<T, shared_ptr<MalList>>)
             return v->data.empty();
+        if constexpr (is_same_v<T, shared_ptr<MalVector>>)
+            return v->data.empty();
         if constexpr (is_same_v<T, MalNil>)
             return true;
 
@@ -100,6 +115,8 @@ static MalType mal_count(const vector<MalType>& args) {
 
         if constexpr (is_same_v<T, shared_ptr<MalList>>)
             return v->data.size();
+        if constexpr (is_same_v<T, shared_ptr<MalVector>>)
+            return v->data.size();
         if constexpr (is_same_v<T, MalNil>)
             return 0;
 
@@ -108,7 +125,17 @@ static MalType mal_count(const vector<MalType>& args) {
 }
 
 static bool _equal(const MalType& _a, const MalType& _b) {
-    if (_a.index() != _b.index()) return false;
+    auto x = _a;
+    auto y = _b;
+
+    if (holds_alternative<shared_ptr<MalVector>>(x)) {
+        x = vec2ls(get<shared_ptr<MalVector>>(x));
+    }
+    if (holds_alternative<shared_ptr<MalVector>>(y)) {
+        y = vec2ls(get<shared_ptr<MalVector>>(y));
+    }
+
+    if (x.index() != y.index()) return false;
 
     return visit([](auto&& a, auto&& b) -> bool {
         using T = decay_t<decltype(a)>;
@@ -149,7 +176,7 @@ static bool _equal(const MalType& _a, const MalType& _b) {
             return a.data == b.data;
         }
         return false;
-    }, _a, _b);
+    }, x, y);
 }
 
 static MalType mal_equal_value(const vector<MalType>& args) {
@@ -224,21 +251,42 @@ static MalType mal_greater_equal(const vector<MalType>& args) {
         less<>()) == nums.end());
 }
 
+static MalType mal_pr_str(const vector<MalType>& args) {
+    return MalString(tostr(args, " ", true));
+}
+
+static MalType mal_str(const vector<MalType>& args) {
+    return MalString(tostr(args, "", false));
+}
+
+static MalType mal_prn(const vector<MalType>& args) {
+    cout << tostr(args, " ", true) << endl;
+    return MalNil();
+}
+
+static MalType mal_println(const vector<MalType>& args) {
+    cout << tostr(args, " ", false) << endl;
+    return MalNil();
+}
+
 unordered_map<string, MalFunction> core_fn{
     { "+", MalFunction(mal_plus) },
     { "-", MalFunction(mal_minus) },
     { "*", MalFunction(mal_multiply) },
     { "/", MalFunction(mal_divide) },
-    { "prn", MalFunction(mal_prn) },
     { "list", MalFunction(mal_list) },
     { "list?", MalFunction(mal_is_list) },
     { "empty?", MalFunction(mal_is_empty) },
     { "count", MalFunction(mal_count) },
     { "=", MalFunction(mal_equal_value) },
+    { "eq?", MalFunction(mal_equal) },
     { "<", MalFunction(mal_less) },
     { "<=", MalFunction(mal_less_equal) },
     { ">", MalFunction(mal_greater) },
     { ">=", MalFunction(mal_greater_equal) },
-    { "eq?", MalFunction(mal_equal) },
+    { "pr-str", MalFunction(mal_pr_str) },
+    { "str", MalFunction(mal_str) },
+    { "prn", MalFunction(mal_prn) },
+    { "println", MalFunction(mal_println) },
 };
 

@@ -149,7 +149,6 @@ static MalType core_form_fn(const MalList& ls, shared_ptr<MalEnv> env) {
             auto fn_env = make_shared<MalEnv>(env, param_list, args);
             auto it = ls.data.begin();
             std::advance(it, 2);
-
             MalType ret = MalNil();
 
             while (it != ls.data.end()) {

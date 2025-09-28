@@ -1,36 +1,24 @@
 #include <regex>
+#include <iostream>
 
 #include "printer.h"
+#include "util.h"
 
 using namespace std;
 
 static string encode_string(const string& s) {
-    std::string out = s;
-
-    // 단순 치환: \, ", \n, \r, \t
-    out = std::regex_replace(out, std::regex(R"(\\)"), R"(\\)");
-    out = std::regex_replace(out, std::regex(R"(")"), R"(\")");
-    out = std::regex_replace(out, std::regex(R"(\n)"), R"(\n)");
-    out = std::regex_replace(out, std::regex(R"(\r)"), R"(\r)");
-    out = std::regex_replace(out, std::regex(R"(\t)"), R"(\t)");
-
-    // 비ASCII 문자 처리 (\xHH;), regex로 검색
-    std::regex nonAscii(R"(([\x00-\x08\x0B\x0C\x0E-\x1F\x80-\xFF]))"); // 제어문자 + 비ASCII
-    std::smatch match;
-    std::string result;
-    std::string::const_iterator searchStart(out.cbegin());
-
-    while (std::regex_search(searchStart, out.cend(), match, nonAscii)) {
-        result.append(match.prefix());
-        unsigned char c = static_cast<unsigned char>(match[1].str()[0]);
-        std::ostringstream oss;
-        oss << "\\x" << std::hex << std::uppercase << (int)c << ";";
-        result.append(oss.str());
-        searchStart = match.suffix().first;
-    }
-    result.append(searchStart, out.cend());
-
-    return result;
+    return regex_replace_callback(s, regex("[\\\\\n\t\r\b\"]"),
+        [] (const smatch& m) -> string {
+            switch (m.str()[0]) {
+                case '\\': return R"(\\)";
+                case '\n': return R"(\n)";
+                case '\t': return R"(\t)";
+                case '\r': return R"(\r)";
+                case '\b': return R"(\b)";
+                case '"':  return R"(\")";
+            }
+            return "";
+        });
 }
 
 static string pr_list(const MalList& l, bool print_readably) {
@@ -95,7 +83,7 @@ static string pr_bool(const MalBool& b, bool print_readably) {
 }
 
 static string pr_string(const MalString& s, bool print_readably) {
-    return '"' + (print_readably ? encode_string(s.data) : s.data) + '"';
+    return (print_readably ? '"' + encode_string(s.data) + '"' : s.data);
 }
 
 static string pr_keyword(const MalKeyword& k, bool print_readably) {
