@@ -10,6 +10,11 @@
 using namespace std;
 using namespace ranges;
 
+struct TCO {
+    MalType ast;
+    optional<shared_ptr<MalEnv>> env;
+};
+
 static void print_debug_eval_if_activated(const MalType& ast, const MalEnv& env) {
     auto opt = env.get("DEBUG-EVAL");
 
@@ -82,13 +87,13 @@ static MalType core_form_let(const MalList& ls, shared_ptr<MalEnv> env) {
         throw MalEvalFailed("invalid let* form");
     }, *it++);
 
-    MalType ret = MalNil();
+    if (it == ls.data.end()) return MalNil();
 
-    while (it != ls.data.end()) {
-        ret = eval(*it++, let_env);
+    while (std::next(it) != ls.data.end()) {
+        eval(*it++, let_env);
     }
 
-    return ret;
+    throw TCO{ *it, let_env };
 }
 
 static MalType core_form_do(const MalList& ls, shared_ptr<MalEnv> env) {
@@ -96,13 +101,13 @@ static MalType core_form_do(const MalList& ls, shared_ptr<MalEnv> env) {
     auto it = ls.data.begin();
     assert(get<MalSymbol>(*it++).data == "do");
 
-    MalType ret = MalNil();
+    if (it == ls.data.end()) return MalNil();
 
-    while (it != ls.data.end()) {
-        ret = eval(*it++, env);
+    while (std::next(it) != ls.data.end()) {
+        eval(*it++, env);
     }
 
-    return ret;
+    throw TCO{ *it };
 }
 
 static MalType core_form_if(const MalList& ls, shared_ptr<MalEnv> env) {
@@ -120,8 +125,13 @@ static MalType core_form_if(const MalList& ls, shared_ptr<MalEnv> env) {
         return true;
     }, cond_tmp);
 
-    if (cond) return eval(*it, env);
-    return (ls.data.size() == 4 ? eval(*++it, env) : MalNil());
+    if (cond) {
+        throw TCO{ *it };
+    } else if (ls.data.size() == 4) {
+        throw TCO{ *++it };
+    } else {
+        return MalNil();
+    }
 }
 
 static MalType core_form_fn(const MalList& ls, shared_ptr<MalEnv> env) {
@@ -149,13 +159,14 @@ static MalType core_form_fn(const MalList& ls, shared_ptr<MalEnv> env) {
             auto fn_env = make_shared<MalEnv>(env, param_list, args);
             auto it = ls.data.begin();
             std::advance(it, 2);
-            MalType ret = MalNil();
 
-            while (it != ls.data.end()) {
-                ret = eval(*it++, fn_env);
+            if (it == ls.data.end()) return MalNil();
+
+            while (std::next(it) != ls.data.end()) {
+                eval(*it++, fn_env);
             }
 
-            return ret;
+            throw TCO{ *it , fn_env };
         }
     );
 }
@@ -227,20 +238,31 @@ static MalType eval_hashmap(const shared_ptr<MalHashmap>& hm, shared_ptr<MalEnv>
 MalType eval(const MalType& ast, shared_ptr<MalEnv> env) {
     print_debug_eval_if_activated(ast, *env);
 
-    return visit([&](auto&& v) -> MalType {
-        using T = decay_t<decltype(v)>;
-        if constexpr (is_same_v<T, MalSymbol>) {
-            return eval_symbol(v, env);
+    auto _ast = ast;
+
+    while (true) {
+        try {
+            return visit([&](auto&& v) -> MalType {
+                using T = decay_t<decltype(v)>;
+                if constexpr (is_same_v<T, MalSymbol>) {
+                    return eval_symbol(v, env);
+                }
+                if constexpr (is_same_v<T, shared_ptr<MalList>>) {
+                    return eval_list(v, env);
+                }
+                if constexpr (is_same_v<T, shared_ptr<MalVector>>) {
+                    return eval_vector(v, env);
+                }
+                if constexpr (is_same_v<T, shared_ptr<MalHashmap>>) {
+                    return eval_hashmap(v, env);
+                }
+                return v;
+            }, _ast);
+        } catch (TCO& tco) {
+            _ast = tco.ast;
+            if (tco.env) {
+                env = *tco.env;
+            }
         }
-        if constexpr (is_same_v<T, shared_ptr<MalList>>) {
-            return eval_list(v, env);
-        }
-        if constexpr (is_same_v<T, shared_ptr<MalVector>>) {
-            return eval_vector(v, env);
-        }
-        if constexpr (is_same_v<T, shared_ptr<MalHashmap>>) {
-            return eval_hashmap(v, env);
-        }
-        return v;
-    }, ast);
+    }
 }
