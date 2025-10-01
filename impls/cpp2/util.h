@@ -5,12 +5,12 @@
 #include <type_traits>
 #include <regex>
 
-template <typename F, typename T>
-auto echanger(F f, T e) {
+template <typename F, typename G>
+auto echanger(F f, G e) {
     try {
         return f();
     } catch(...) {
-        throw e;
+        throw e();
     }
 }
 

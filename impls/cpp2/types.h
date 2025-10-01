@@ -94,4 +94,6 @@ struct MalFunction {
 
 MalType MalKeyToMalType(const MalHashmap::Key& k);
 
+std::string MalTypeToString(const MalType& v);
+
 #endif // _TYPES_H_

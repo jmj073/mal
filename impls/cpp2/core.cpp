@@ -6,11 +6,25 @@
 #include <fstream>
 
 #include "core.h"
-#include "eval.h"
 #include "reader.h"
 #include "printer.h"
+#include "eval.h"
 
 using namespace std;
+
+template <typename T>
+auto arg_transformer(const MalType& arg) {
+    return echanger(
+        [&]() { return get<T>(arg); },
+        [&]() { return MalRuntimeError("invalid argument type: " + MalTypeToString(arg)); }
+    );
+}
+
+static inline void argument_count_checker(const vector<MalType>& args, size_t cnt) {
+    if (args.size() != cnt) {
+        throw MalRuntimeError("invalid argument count:" + to_string(args.size()));
+    }
+}
 
 static string tostr(const vector<MalType>& args, const string& sep, bool print_readably) {
     auto r = args
@@ -48,7 +62,7 @@ static MalType mal_minus(const vector<MalType>& args) {
         | views::transform([](auto arg) { return arg.data; });
     auto vec = vector(int_args.begin(), int_args.end());
     if (vec.empty()) {
-        throw MalEvalFailed("invalid argument count");
+        throw MalRuntimeError("invalid argument count: 0");
     }
     if (vec.size() == 1) {
         return MalNumber(-vec[0]);
@@ -69,7 +83,7 @@ static MalType mal_divide(const vector<MalType>& args) {
         | views::transform([](auto arg) { return arg.data; });
     auto vec = vector(int_args.begin(), int_args.end());
     if (vec.empty()) {
-        throw MalEvalFailed("invalid argument count");
+        throw MalRuntimeError("invalid argument count: 0");
     }
     if (vec.size() == 1) {
         return MalNumber(1 / vec[0]);
@@ -82,16 +96,12 @@ static MalType mal_list(const vector<MalType>& args) {
 }
 
 static MalType mal_is_list(const vector<MalType>& args) {
-    if (args.size() != 1) {
-        throw MalEvalFailed("invalid argument count");
-    }
+    argument_count_checker(args, 1);
     return MalBool(holds_alternative<shared_ptr<MalList>>(args.front()));
 }
 
 static MalType mal_is_empty(const vector<MalType>& args) {
-    if (args.size() != 1) {
-        throw MalEvalFailed("invalid argument count");
-    }
+    argument_count_checker(args, 1);
 
     return MalBool(visit([](auto&& v) -> bool {
         using T = decay_t<decltype(v)>;
@@ -103,14 +113,12 @@ static MalType mal_is_empty(const vector<MalType>& args) {
         if constexpr (is_same_v<T, MalNil>)
             return true;
 
-        throw MalEvalFailed("invalid argument type");
+        throw MalRuntimeError("invalid argument type: " + MalTypeToString(v));
     }, args.front()));
 }
 
 static MalType mal_count(const vector<MalType>& args) {
-    if (args.size() != 1) {
-        throw MalEvalFailed("invalid argument count");
-    }
+    argument_count_checker(args, 1);
 
     return MalNumber(visit([](auto&& v) -> int {
         using T = decay_t<decltype(v)>;
@@ -122,7 +130,7 @@ static MalType mal_count(const vector<MalType>& args) {
         if constexpr (is_same_v<T, MalNil>)
             return 0;
 
-        throw MalEvalFailed("invalid argument type");
+        throw MalRuntimeError("invalid argument type: " + MalTypeToString(v));
     }, args.front()));
 }
 
@@ -272,17 +280,12 @@ static MalType mal_println(const vector<MalType>& args) {
 }
 
 static MalType mal_read_string(const vector<MalType>& args) {
-    if (args.size() != 1) {
-        throw MalEvalFailed("invalid argument count");
-    }
+    argument_count_checker(args, 1);
     return read_str(get<MalString>(args[0]).data);
 }
 
 static MalType mal_slurp(const vector<MalType>& args) {
-    if (args.size() != 1) {
-        throw MalEvalFailed("invalid argument count");
-    }
-
+    argument_count_checker(args, 1);
     auto& path = get<MalString>(args[0]).data;
     
     ifstream file(path);
@@ -298,9 +301,7 @@ static MalType mal_slurp(const vector<MalType>& args) {
 }
 
 static MalType mal_eval(const vector<MalType>& args) {
-    if (args.size() != 1) {
-        throw MalEvalFailed("invalid argument count");
-    }
+    argument_count_checker(args, 1);
     return eval(args[0], repl_env);
 }
 
