@@ -15,6 +15,14 @@ public:
     { }
 };
 
+class MalRuntimeError: public std::runtime_error {
+public:
+    template <typename ...Types>
+    MalRuntimeError(Types&& ...args)
+        : std::runtime_error(std::forward<Types>(args)...)
+    { }
+};
+
 MalType eval(const MalType& ast, std::shared_ptr<MalEnv> env);
 
 template <typename T>

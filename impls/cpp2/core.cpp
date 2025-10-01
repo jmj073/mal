@@ -3,9 +3,11 @@
 #include <algorithm>
 #include <functional>
 #include <iostream>
+#include <fstream>
 
 #include "core.h"
 #include "eval.h"
+#include "reader.h"
 #include "printer.h"
 
 using namespace std;
@@ -269,6 +271,39 @@ static MalType mal_println(const vector<MalType>& args) {
     return MalNil();
 }
 
+static MalType mal_read_string(const vector<MalType>& args) {
+    if (args.size() != 1) {
+        throw MalEvalFailed("invalid argument count");
+    }
+    return read_str(get<MalString>(args[0]).data);
+}
+
+static MalType mal_slurp(const vector<MalType>& args) {
+    if (args.size() != 1) {
+        throw MalEvalFailed("invalid argument count");
+    }
+
+    auto& path = get<MalString>(args[0]).data;
+    
+    ifstream file(path);
+
+    if (!file) {
+        throw MalRuntimeError("can't open file '" + path + "'");
+    }
+
+    string str((istreambuf_iterator<char>(file)),
+               istreambuf_iterator<char>());
+
+    return MalString(std::move(str));
+}
+
+static MalType mal_eval(const vector<MalType>& args) {
+    if (args.size() != 1) {
+        throw MalEvalFailed("invalid argument count");
+    }
+    return eval(args[0], repl_env);
+}
+
 unordered_map<string, MalFunction> core_fn{
     { "+", MalFunction(mal_plus) },
     { "-", MalFunction(mal_minus) },
@@ -288,5 +323,8 @@ unordered_map<string, MalFunction> core_fn{
     { "str", MalFunction(mal_str) },
     { "prn", MalFunction(mal_prn) },
     { "println", MalFunction(mal_println) },
+    { "read-string", MalFunction(mal_read_string) },
+    { "slurp", MalFunction(mal_slurp) },
+    { "eval", MalFunction(mal_eval) },
 };
 
