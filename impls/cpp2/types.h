@@ -20,6 +20,7 @@ struct MalList;
 struct MalVector;
 struct MalHashmap;
 struct MalFunction;
+struct MalAtom;
 
 using MalType = std::variant<
     MalNumber,
@@ -31,7 +32,8 @@ using MalType = std::variant<
     std::shared_ptr<MalList>,
     std::shared_ptr<MalVector>,
     std::shared_ptr<MalHashmap>,
-    std::shared_ptr<MalFunction>
+    std::shared_ptr<MalFunction>,
+    std::shared_ptr<MalAtom>
 >;
 
 struct MalList {
@@ -90,6 +92,11 @@ struct MalHashmap {
 
 struct MalFunction {
     std::function<MalType(const std::vector<MalType>&)> data;
+};
+
+struct MalAtom {
+    using T = MalType;
+    T data;
 };
 
 MalType MalKeyToMalType(const MalHashmap::Key& k);

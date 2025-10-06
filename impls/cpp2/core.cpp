@@ -26,6 +26,13 @@ static inline void argument_count_checker(const vector<MalType>& args, size_t cn
     }
 }
 
+template <typename T>
+void argument_type_checker(const MalType& arg) {
+    if (!holds_alternative<T>(arg)) {
+        throw MalRuntimeError("invalid argument type: " + MalTypeToString(arg));
+    }
+}
+
 static string tostr(const vector<MalType>& args, const string& sep, bool print_readably) {
     auto r = args
         | views::transform([=](auto&& arg) { return pr_str(arg, print_readably); });
@@ -182,6 +189,8 @@ static bool _equal(const MalType& _a, const MalType& _b) {
             return true;
         } else if constexpr (is_all_same_v<T, U, shared_ptr<MalFunction>>) {
             return a.get() == b.get();
+        } else if constexpr (is_all_same_v<T, U, shared_ptr<MalAtom>>) {
+            return _equal(a->data, b->data);
         } else if constexpr (is_all_same_v<T, U>) {
             return a.data == b.data;
         }
@@ -305,6 +314,39 @@ static MalType mal_eval(const vector<MalType>& args) {
     return eval(args[0], repl_env);
 }
 
+static MalType mal_atom(const vector<MalType>& args) {
+    argument_count_checker(args, 1);
+    return make_shared<MalAtom>(args.front());
+}
+
+static MalType mal_is_atom(const vector<MalType>& args) {
+    argument_count_checker(args, 1);
+    return MalBool(holds_alternative<shared_ptr<MalAtom>>(args.front()));
+}
+
+static MalType mal_deref(const vector<MalType>& args) {
+    argument_count_checker(args, 1);
+    return arg_transformer<shared_ptr<MalAtom>>(args.front())->data;
+}
+
+static MalType mal_reset(const vector<MalType>& args) {
+    argument_count_checker(args, 2);
+    return arg_transformer<shared_ptr<MalAtom>>(args.front())->data = args[1];
+}
+
+static MalType mal_swap(const vector<MalType>& args) {
+    if (args.size() < 2) {
+        throw MalRuntimeError("invalid argument count:" + to_string(args.size()));
+    }
+
+    auto atom = arg_transformer<shared_ptr<MalAtom>>(args[0]);
+    auto fn = arg_transformer<shared_ptr<MalFunction>>(args[1]);
+    vector<MalType> ap{ atom->data };
+    ap.insert(ap.end(), args.begin() + 2, args.end());
+
+    return atom->data = fn->data(ap);
+}
+
 unordered_map<string, MalFunction> core_fn{
     { "+", MalFunction(mal_plus) },
     { "-", MalFunction(mal_minus) },
@@ -327,5 +369,10 @@ unordered_map<string, MalFunction> core_fn{
     { "read-string", MalFunction(mal_read_string) },
     { "slurp", MalFunction(mal_slurp) },
     { "eval", MalFunction(mal_eval) },
+    { "atom", MalFunction(mal_atom) },
+    { "atom?", MalFunction(mal_is_atom) },
+    { "deref", MalFunction(mal_deref) },
+    { "reset!", MalFunction(mal_reset) },
+    { "swap!", MalFunction(mal_swap) },
 };
 

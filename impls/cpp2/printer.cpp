@@ -90,6 +90,10 @@ static string pr_keyword(const MalKeyword& k, bool print_readably) {
     return ':' + k.data;
 }
 
+static string pr_atom(const MalAtom& atom, bool print_readably) {
+    return "(atom " + pr_str(atom.data, print_readably) + ")";
+}
+
 string pr_str(const MalType& ast, bool print_readably) {
     return visit([&](auto&& v) -> string {
         using T = decay_t<decltype(v)>;
@@ -113,6 +117,8 @@ string pr_str(const MalType& ast, bool print_readably) {
             return pr_hashmap(*v, print_readably);
         if constexpr (is_same_v<T, shared_ptr<MalFunction>>)
             return "#<function>";
+        if constexpr (is_same_v<T, shared_ptr<MalAtom>>)
+            return pr_atom(*v, print_readably);
         return "<unknown>";
     }, ast);
 }

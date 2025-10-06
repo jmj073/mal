@@ -42,6 +42,8 @@ std::string MalTypeToString(const MalType& v) {
             return "hashmap";
         if constexpr (is_same_v<T, shared_ptr<MalFunction>>)
             return "function";
+        if constexpr (is_same_v<T, shared_ptr<MalAtom>>)
+            return "atom";
         return "unknown";
     }, v);
 }
