@@ -14,6 +14,8 @@ struct TCO {
     optional<shared_ptr<MalEnv>> env;
 };
 
+static MalType apply(const MalList& ls);
+
 static void print_debug_eval_if_activated(const MalType& ast, const MalEnv& env) {
     auto opt = env.get("DEBUG-EVAL");
 
@@ -106,7 +108,7 @@ static MalType core_form_do(shared_ptr<MalList> ls, shared_ptr<MalEnv> env) {
         eval(*it++, env);
     }
 
-    throw TCO{ *it };
+    throw TCO{ *it , env };
 }
 
 static MalType core_form_if(shared_ptr<MalList> ls, shared_ptr<MalEnv> env) {
@@ -127,9 +129,9 @@ static MalType core_form_if(shared_ptr<MalList> ls, shared_ptr<MalEnv> env) {
     }, cond_tmp);
 
     if (cond) {
-        throw TCO{ *it };
+        throw TCO{ *it, env };
     } else if (ls->data.size() == 4) {
-        throw TCO{ *++it };
+        throw TCO{ *++it, env };
     } else {
         return MalNil();
     }
@@ -184,6 +186,19 @@ static MalType core_form_quote(shared_ptr<MalList> ls, shared_ptr<MalEnv> env) {
     return *it;
 }
 
+static MalType core_form_quasiquote(shared_ptr<MalList> ls, shared_ptr<MalEnv> env) {
+    if (ls->data.size() != 2) {
+        throw MalEvalFailed(ls, "invalid quasiquote form");
+    }
+    auto it = ls->data.begin();
+    assert(get<MalSymbol>(*it++).data == "quasiquote");
+
+    auto fn = eval(MalSymbol("quasiquote"), env);
+    auto ast = apply(MalList({ fn, *it }));
+
+    throw TCO{ ast, env };
+}
+
 static map<string, function<MalType(shared_ptr<MalList>, shared_ptr<MalEnv>)>> core_form = {
     { "def!", core_form_def },
     { "let*", core_form_let },
@@ -191,6 +206,7 @@ static map<string, function<MalType(shared_ptr<MalList>, shared_ptr<MalEnv>)>> c
     { "if", core_form_if },
     { "fn*", core_form_fn },
     { "quote", core_form_quote },
+    { "quasiquote", core_form_quasiquote },
 };
 
 static MalType apply(const MalList& ls) {

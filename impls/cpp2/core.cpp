@@ -22,7 +22,7 @@ auto arg_transformer(const MalType& arg) {
 
 static inline void argument_count_checker(const vector<MalType>& args, size_t cnt) {
     if (args.size() != cnt) {
-        throw MalRuntimeError("invalid argument count:" + to_string(args.size()));
+        throw MalRuntimeError("invalid argument count: " + to_string(args.size()));
     }
 }
 
@@ -353,26 +353,140 @@ static MalType mal_swap(const vector<MalType>& args) {
 static MalType mal_cons(const vector<MalType>& args) {
     argument_count_checker(args, 2);
     
-    auto& car = args[0];
-    auto cdr = arg_transformer<shared_ptr<MalList>>(args[1])->data;
-    auto ret = make_shared<MalList>();
-    ret->data = cdr;
-    ret->data.push_front(car);
+    return visit([&](auto&& v) -> MalType {
+        using T = decay_t<decltype(v)>;
 
-    return ret;
+        if constexpr (is_same_v<T, shared_ptr<MalList>>
+                || is_same_v<T, shared_ptr<MalVector>>) {
+            MalList::T ls;
+            ls.push_back(args[0]);
+            ls.insert(ls.end(), v->data.begin(), v->data.end());
+            return make_shared<MalList>(std::move(ls));
+        }
+
+        throw MalRuntimeError("invalid argument type: " + MalTypeToString(v));
+    }, args[1]);
 }
 
 static MalType mal_concat(const vector<MalType>& args) {
-    auto ls_args = args
-        | views::transform(arg_transformer<shared_ptr<MalList>>)
-        | views::transform([](auto arg) -> MalList::T& { return arg->data; });
     MalList::T ls;
 
-    for (auto& l: ls_args) {
-        ls.insert(ls.end(), l.begin(), l.end());
+    for (auto& arg: args) {
+        visit([&](auto&& v) {
+            using T = decay_t<decltype(v)>;
+
+            if constexpr (is_same_v<T, shared_ptr<MalList>>
+                    || is_same_v<T, shared_ptr<MalVector>>) {
+                ls.insert(ls.end(), v->data.begin(), v->data.end());
+                return;
+            }
+
+            throw MalRuntimeError("invalid argument type: " + MalTypeToString(v));
+        }, arg);
     }
 
     return make_shared<MalList>(std::move(ls));
+}
+
+static optional<MalType> unbox_unquote(const MalType& ast) {
+    if (!holds_alternative<shared_ptr<MalList>>(ast)) {
+        return nullopt;
+    }
+    auto ls = get<shared_ptr<MalList>>(ast);
+    if (ls->data.empty()) return nullopt;
+    if (!holds_alternative<MalSymbol>(ls->data.front())) {
+        return nullopt;
+    }
+    auto sym = get<MalSymbol>(ls->data.front());
+    if (sym.data != "unquote") return nullopt;
+    if (ls->data.size() != 2) {
+        throw MalEvalFailed(ls, "invalid unquote form");
+    }
+    return ls->data.back();
+}
+
+static optional<MalType> unbox_splice_unquote(const MalType& ast) {
+    if (!holds_alternative<shared_ptr<MalList>>(ast)) {
+        return nullopt;
+    }
+    auto ls = get<shared_ptr<MalList>>(ast);
+    if (ls->data.empty()) return nullopt;
+    if (!holds_alternative<MalSymbol>(ls->data.front())) {
+        return nullopt;
+    }
+    auto sym = get<MalSymbol>(ls->data.front());
+    if (sym.data != "splice-unquote") return nullopt;
+    if (ls->data.size() != 2) {
+        throw MalEvalFailed(ls, "invalid splice-unquote form");
+    }
+    return ls->data.back();
+}
+
+static MalType _quasiquote(const MalType& ast) {
+    if (auto opt = unbox_unquote(ast)) {
+        return *opt;
+    }
+
+    if (holds_alternative<shared_ptr<MalList>>(ast)) {
+        MalList::T res;
+        auto ls = get<shared_ptr<MalList>>(ast);
+
+        for (auto rit = ls->data.rbegin(); rit != ls->data.rend(); ++rit) {
+            if (auto opt = unbox_splice_unquote(*rit)) {
+                MalList::T tmp;
+                tmp.push_back(MalSymbol("concat"));
+                tmp.push_back(*opt);
+                tmp.push_back(make_shared<MalList>(std::move(res)));
+                res = std::move(tmp);
+            } else {
+                MalList::T tmp;
+                tmp.push_back(MalSymbol("cons"));
+                tmp.push_back(_quasiquote(*rit));
+                tmp.push_back(make_shared<MalList>(std::move(res)));
+                res = std::move(tmp);
+            }
+        }
+
+        return make_shared<MalList>(std::move(res));
+    }
+
+    if (holds_alternative<shared_ptr<MalHashmap>>(ast)
+            || holds_alternative<MalSymbol>(ast)) {
+        auto ls = make_shared<MalList>();
+        ls->data.push_back(MalSymbol("quote"));
+        ls->data.push_back(ast);
+        return ls;
+    }
+
+    if (holds_alternative<shared_ptr<MalVector>>(ast)) {
+        MalList::T res;
+        res.push_back(MalSymbol("vec"));
+        res.push_back(_quasiquote(vec2ls(get<shared_ptr<MalVector>>(ast))));
+        return make_shared<MalList>(std::move(res));
+    }
+
+    return ast;
+}
+
+static MalType mal_quasiquote(const vector<MalType>& args) {
+    argument_count_checker(args, 1);
+    return _quasiquote(args.front());
+}
+
+static MalType mal_vec(const vector<MalType>& args) {
+    argument_count_checker(args, 1);
+
+    return visit([&](auto&& v) -> MalType {
+        using T = decay_t<decltype(v)>;
+
+        if constexpr (is_same_v<T, shared_ptr<MalList>>
+                || is_same_v<T, shared_ptr<MalVector>>) {
+            MalVector::T vec(v->data.begin(), v->data.end());
+            return make_shared<MalVector>(std::move(vec));
+        }
+
+        throw MalRuntimeError("invalid argument type: " + MalTypeToString(v));
+    }, args.front());
 }
 
 unordered_map<string, MalFunction> core_fn{
@@ -404,5 +518,7 @@ unordered_map<string, MalFunction> core_fn{
     { "swap!", MalFunction(mal_swap) },
     { "cons", MalFunction(mal_cons) },
     { "concat", MalFunction(mal_concat) },
+    { "quasiquote", MalFunction(mal_quasiquote) },
+    { "vec", MalFunction(mal_vec) },
 };
 
