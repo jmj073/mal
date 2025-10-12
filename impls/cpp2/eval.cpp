@@ -174,12 +174,23 @@ static MalType core_form_fn(shared_ptr<MalList> ls, shared_ptr<MalEnv> env) {
     );
 }
 
+static MalType core_form_quote(shared_ptr<MalList> ls, shared_ptr<MalEnv> env) {
+    if (ls->data.size() != 2) {
+        throw MalEvalFailed(ls, "invalid quote form");
+    }
+    auto it = ls->data.begin();
+    assert(get<MalSymbol>(*it++).data == "quote");
+
+    return *it;
+}
+
 static map<string, function<MalType(shared_ptr<MalList>, shared_ptr<MalEnv>)>> core_form = {
     { "def!", core_form_def },
     { "let*", core_form_let },
     { "do", core_form_do },
     { "if", core_form_if },
     { "fn*", core_form_fn },
+    { "quote", core_form_quote },
 };
 
 static MalType apply(const MalList& ls) {
