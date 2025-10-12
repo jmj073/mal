@@ -350,6 +350,31 @@ static MalType mal_swap(const vector<MalType>& args) {
     return atom->data = eval(ls, repl_env);
 }
 
+static MalType mal_cons(const vector<MalType>& args) {
+    argument_count_checker(args, 2);
+    
+    auto& car = args[0];
+    auto cdr = arg_transformer<shared_ptr<MalList>>(args[1])->data;
+    auto ret = make_shared<MalList>();
+    ret->data = cdr;
+    ret->data.push_front(car);
+
+    return ret;
+}
+
+static MalType mal_concat(const vector<MalType>& args) {
+    auto ls_args = args
+        | views::transform(arg_transformer<shared_ptr<MalList>>)
+        | views::transform([](auto arg) -> MalList::T& { return arg->data; });
+    MalList::T ls;
+
+    for (auto& l: ls_args) {
+        ls.insert(ls.end(), l.begin(), l.end());
+    }
+
+    return make_shared<MalList>(std::move(ls));
+}
+
 unordered_map<string, MalFunction> core_fn{
     { "+", MalFunction(mal_plus) },
     { "-", MalFunction(mal_minus) },
@@ -377,5 +402,7 @@ unordered_map<string, MalFunction> core_fn{
     { "deref", MalFunction(mal_deref) },
     { "reset!", MalFunction(mal_reset) },
     { "swap!", MalFunction(mal_swap) },
+    { "cons", MalFunction(mal_cons) },
+    { "concat", MalFunction(mal_concat) },
 };
 
