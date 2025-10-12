@@ -341,10 +341,13 @@ static MalType mal_swap(const vector<MalType>& args) {
 
     auto atom = arg_transformer<shared_ptr<MalAtom>>(args[0]);
     auto fn = arg_transformer<shared_ptr<MalFunction>>(args[1]);
-    vector<MalType> ap{ atom->data };
-    ap.insert(ap.end(), args.begin() + 2, args.end());
+    auto ls = make_shared<MalList>();
 
-    return atom->data = fn->data(ap);
+    ls->data.push_back(fn);
+    ls->data.push_back(atom->data);
+    ls->data.insert(ls->data.end(), args.begin() + 2, args.end());
+
+    return atom->data = eval(ls, repl_env);
 }
 
 unordered_map<string, MalFunction> core_fn{
