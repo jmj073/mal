@@ -30,8 +30,24 @@ static void add_core_fn(MalEnv& env) {
     );
 }
 
-int main() {
+static void add_argv(int argc, char* argv[]) {
+    auto ls = make_shared<MalList>();
+
+    for (int i = 2; i < argc; ++i) {
+        ls->data.push_back(MalString(argv[i]));
+    }
+
+    repl_env->set("*ARGV*", std::move(ls));
+}
+
+int main(int argc, char* argv[]) {
     add_core_fn(*repl_env);
+    add_argv(argc, argv);
+
+    if (argc >= 2) {
+        rep("(load-file " + pr_str(MalString(argv[1]), true) + ")");
+        return 0;
+    }
 
     const string prompt = "user> ";
     string input;
