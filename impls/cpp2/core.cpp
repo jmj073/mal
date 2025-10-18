@@ -422,16 +422,18 @@ static optional<MalType> unbox_splice_unquote(const MalType& ast) {
     return ls->data.back();
 }
 
-static MalType _quasiquote(const MalType& ast) {
-    if (auto opt = unbox_unquote(ast)) {
-        return *opt;
+static MalType _quasiquote(const MalType& ast, bool unquote = true) {
+    if (unquote) {
+        if (auto opt = unbox_unquote(ast)) {
+            return *opt;
+        }
     }
 
-    if (holds_alternative<shared_ptr<MalList>>(ast)) {
+    if (holds_alternative<sptr<MalList>>(ast)) {
         MalList::T res;
-        auto ls = get<shared_ptr<MalList>>(ast);
+        auto& ls = get<sptr<MalList>>(ast)->data;
 
-        for (auto rit = ls->data.rbegin(); rit != ls->data.rend(); ++rit) {
+        for (auto rit = ls.rbegin(); rit != ls.rend(); ++rit) {
             if (auto opt = unbox_splice_unquote(*rit)) {
                 MalList::T tmp;
                 tmp.push_back(MalSymbol("concat"));
@@ -458,10 +460,10 @@ static MalType _quasiquote(const MalType& ast) {
         return ls;
     }
 
-    if (holds_alternative<shared_ptr<MalVector>>(ast)) {
+    if (holds_alternative<sptr<MalVector>>(ast)) {
         MalList::T res;
         res.push_back(MalSymbol("vec"));
-        res.push_back(_quasiquote(vec2ls(get<shared_ptr<MalVector>>(ast))));
+        res.push_back(_quasiquote(vec2ls(get<sptr<MalVector>>(ast)), false));
         return make_shared<MalList>(std::move(res));
     }
 

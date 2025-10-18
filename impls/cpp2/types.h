@@ -10,6 +10,12 @@
 #include <variant>
 #include <functional>
 
+namespace std {
+    
+    template <typename T>
+    using sptr = shared_ptr<T>;
+}
+
 struct MalNumber;
 struct MalSymbol;
 struct MalNil;
@@ -29,11 +35,11 @@ using MalType = std::variant<
     MalBool,
     MalString,
     MalKeyword,
-    std::shared_ptr<MalList>,
-    std::shared_ptr<MalVector>,
-    std::shared_ptr<MalHashmap>,
-    std::shared_ptr<MalFunction>,
-    std::shared_ptr<MalAtom>
+    std::sptr<MalList>,
+    std::sptr<MalVector>,
+    std::sptr<MalHashmap>,
+    std::sptr<MalFunction>,
+    std::sptr<MalAtom>
 >;
 
 struct MalList {

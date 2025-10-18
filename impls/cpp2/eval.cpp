@@ -11,7 +11,7 @@ using namespace ranges;
 
 struct TCO {
     MalType ast;
-    optional<shared_ptr<MalEnv>> env;
+    shared_ptr<MalEnv> env;
 };
 
 static MalType apply(const MalList& ls);
@@ -266,11 +266,11 @@ static MalType eval_hashmap(shared_ptr<MalHashmap> hm, shared_ptr<MalEnv> env) {
 }
 
 MalType eval(const MalType& ast, shared_ptr<MalEnv> env) {
-    print_debug_eval_if_activated(ast, *env);
-
     auto _ast = ast;
 
     while (true) {
+        print_debug_eval_if_activated(_ast, *env);
+
         try {
             return visit([&](auto&& v) -> MalType {
                 using T = decay_t<decltype(v)>;
@@ -290,9 +290,7 @@ MalType eval(const MalType& ast, shared_ptr<MalEnv> env) {
             }, _ast);
         } catch (TCO& tco) {
             _ast = tco.ast;
-            if (tco.env) {
-                env = *tco.env;
-            }
+            env = tco.env;
         }
     }
 }
